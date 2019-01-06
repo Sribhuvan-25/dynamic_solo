@@ -9,7 +9,7 @@ import numpy as np
 import chord_dict
 
 def main():
-    CHORD_VECT = CHORD_DICT_Simple.chord_vect_dict()
+    CHORD_VECT = chord_dict.chord_vect_dict()
     
     chord_embedding_size=24 #24x1
     

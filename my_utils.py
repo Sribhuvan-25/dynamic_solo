@@ -40,7 +40,7 @@ def parse_midi(solo):
             
         
     '''
-    Correcting | Cmaj7 |  Rest | where there should be | Cmaj7 |  %  |
+    Correcting | Cmaj7 |  Rest | where it should be | Cmaj7 |  %  |
     '''    
     chordSequence = midi_data[1].recurse().getElementsByClass(['Chord','Rest'])
     n=len(chordSequence)

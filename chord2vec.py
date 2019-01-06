@@ -20,7 +20,7 @@ def chord2vec(chord):
     
     return vect
     
-CHORD_DICT=CHORD_DICT_Simple.chord_vect_dict()
+CHORD_DICT=chord_dict.chord_vect_dict()
 
 def identify_chord(chord):
     vect=chord2vec(chord)
