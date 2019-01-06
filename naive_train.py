@@ -12,6 +12,11 @@ import numpy as np
 from my_utils import melody2matrix, softmax
 
 
+'''
+Naive model to create a two-layer LSTMs that predicts notes
+without taking into account chords.
+'''
+
 #-------------------------- HELPER FUNCTIONS ------------------------------------# 
 
 def get_training_melody(solo,seq_length = 36):
