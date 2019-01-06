@@ -116,8 +116,11 @@ def melody2matrix(solo):
 def matrix2melody(melodyMatrix):
     m,n = melodyMatrix.shape
     melodyStream=stream.Stream()
+    
+    #if you wnat to impose a time and key signature add:
     #melodyStream.timeSignature = meter.TimeSignature('4/4')
     #melodyStream.keySignature = key.Key('C')
+    
     for i in range(m):
         vector = melodyMatrix[:,i]
         nota = vect2note(vector)
