@@ -33,7 +33,7 @@ def split_solo(midi_data):
           'of '+str(windowSize)+' measures each.')
     
     #get training windows:
-    trainingWindows = []                                                      #list of a collection of mini stream.Score
+    trainingWindows = []                                                        #list of a collection of mini stream.Score
     for i in range(0,totalWindows):
         beginWindow = i + 1
         endWindow = beginWindow+windowSize - 1
@@ -61,13 +61,13 @@ Converting each window to one-hot encodings
 '''
 
 def encode_windows(allTrainingWindows):
-    chord_embedding_size = 24                                             #24x1  0-11:root, 12-23: chord notes
-    note_embedding_size = 225                                            #0-127: midi pitch, 128: rest?, 129-201 :note length
+    chord_embedding_size = 24                                                   #24x1  0-11:root, 12-23: chord notes
+    note_embedding_size = 225                                                   #0-127: midi pitch, 128: rest?, 129-201 :note length
     
     count = 0
     m = len(allTrainingWindows)
-    melodyTrain = []                                      #List of melody training matrices, not array because every melody will be different length :(
-    progressionTrain = []                #Empty list to stack progression training matrices (all are same length) 
+    melodyTrain = []                                                            #List of melody training matrices, not array because every melody will be different length :(
+    progressionTrain = []                                                       #Empty list to stack progression training matrices (all are same length) 
     for window in allTrainingWindows:
         melody,progression = window.getElementsByClass('Part')
         melodyMatrix = np.zeros([note_embedding_size,0])
@@ -79,15 +79,15 @@ def encode_windows(allTrainingWindows):
             else:
                 height = nota.pitch.midi
             note_vect[height] = 1
-            length = min(12*float(nota.quarterLength),96)               #mapping durations to integers 0,1,2,3,4,6,...; max duration=96 (2 measures)
-            duration_idx = int(length)                                  #mapping the integers above to 0,1,2,3,4,5,6,7,8,etc
-            note_vect[129+duration_idx] = 1                            #the duration encoding begins at entry 129
+            length = min(12*float(nota.quarterLength),96)                       #mapping durations to integers 0,1,2,3,4,6,...; max duration=96 (2 measures)
+            duration_idx = int(length)                                          #mapping the integers above to 0,1,2,3,4,5,6,7,8,etc
+            note_vect[129+duration_idx] = 1                                     #the duration encoding begins at entry 129
             melodyMatrix = np.append(melodyMatrix,note_vect,axis=1)
         melodyTrain.append(melodyMatrix)
             
         for acorde in progression.recurse().getElementsByClass(chord.Chord):
             chord_vect = np.zeros([chord_embedding_size,1])
-            chord_length = int(acorde.quarterLength)                          #all chords in Parker corpus have an integer length, so we are OK with int()
+            chord_length = int(acorde.quarterLength)                            #all chords in Parker corpus have an integer length, so we are OK with int()
             chord_offset = int(acorde.offset)          
             root_idx = acorde.root().midi % 12
             chord_vect[root_idx] = 1
