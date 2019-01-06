@@ -21,19 +21,19 @@ def main():
     
     #list that will contain the chord symbols corresponting to each beat (without the symbols |'s):                                      
     p=[] 
-    #fill in with ?'s                                                       
+    #fill in with ?'s:                                                       
     for i in range(0,total_beats):                              
         p.append('?')
         
-    #length of the vector containing also the |'s   
+    #length of the vector containing also the |'s:  
     m=total_beats+bars+1                                        
     p_temp=p[:] 
     
-    #insert |'s every 4 symbols
+    #insert |'s every 4 symbols:
     for i in range(0,m,5):                                      
         p_temp.insert(i,'|')
     
-    #string that will display the progression    
+    #string that will display the progression:    
     progression=''                                              
     for i in range(len(p_temp)):
         progression+=p_temp[i]+' '

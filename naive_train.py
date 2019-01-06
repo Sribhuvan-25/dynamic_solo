@@ -52,10 +52,7 @@ def melody_model(X_train , Y_train):
     model = tf.keras.Sequential()
     model.add(tf.keras.layers.LSTM(16, input_shape = (X_train.shape[1:]), activation = 'relu' , \
                                     return_sequences=True))
-    #To get sparse weights put inside the LSTM layer: kernel_regularizer=keras.regularizers.l1(0.001)
-    #model.add(tf.keras.layers.Dropout(0.2))
     model.add(tf.keras.layers.LSTM(16, activation = 'relu', return_sequences=True))
-    #model.add(tf.keras.layers.Dropout(0.2)))
     model.add(tf.keras.layers.Dense(Y_train.shape[2], activation='tanh'))
     opt = tf.keras.optimizers.Adam(lr = .001)
     model.compile(loss='binary_crossentropy', optimizer = opt, metrics = ['accuracy'])

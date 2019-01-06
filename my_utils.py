@@ -38,28 +38,6 @@ def parse_midi(solo):
     
     assert midi_data[0].quarterLength == midi_data[1].quarterLength
             
-    '''
-    Making sure the solo contains only supported note lengths 
-            
-    durationTypes = set()     
-    
-    for nota in midi_data.recurse().getElementsByClass(note.Note):
-        durationTypes.add(str(nota.quarterLength))
-    
-    #durations supported in the training model        
-    allDurationTypes = {'0.0','0.25','0.5','0.75','1.0','1.25','1.5',\
-                      '1.75','1/3','10/3','2.0','2.5','2.75','2/3',\
-                      '3.0','3.5','4.0','4.5','4/3','5.0','5.5','5/3',\
-                      '7/3','8/3'}
-    
-    if durationTypes.issubset(allDurationTypes):
-        print('All note lengths in the solo are supported.')
-    else:
-        print('The solo contains some note lengths not supported. Clean it first.')
-    '''
-       
-    #get rid of unsupported durations:
-        #pending
         
     '''
     Correcting | Cmaj7 |  Rest | where there should be | Cmaj7 |  %  |
@@ -67,19 +45,22 @@ def parse_midi(solo):
     chordSequence = midi_data[1].recurse().getElementsByClass(['Chord','Rest'])
     n=len(chordSequence)
     
-    replacingChords = {}                                                        #dictionary of chords that will replace the rests
-    if chordSequence[0].isRest:                                                 #I made sure the solos in the corpus do not start without an initial chord, but just in case
+    #dictionary of chords that will replace the rests:
+    replacingChords = {}    
+
+    #I made sure the solos in the corpus do not start without an initial chord, but just in case:                                                    
+    if chordSequence[0].isRest:                                                 
             print('The beginning of the progression does not have a chord!')     
     else:
         for i in range(1,n):
             if chordSequence[i].isRest:
-                location = chordSequence[i].offset                                #position where we will put the replacing chord
-                length = chordSequence[i].quarterLength                           #length of the replacing chord
-                chordNotes = list(chordSequence[i-1].pitches)                     #the replacing chord should have the same notes as the previous
-                midi_data[1].remove(chordSequence[i])                             #remove the rest
-                replacingChords['chord{0}'.format(i)] = chord.Chord(chordNotes)   #creating replacing chord
+                location = chordSequence[i].offset                                
+                length = chordSequence[i].quarterLength                           
+                chordNotes = list(chordSequence[i-1].pitches)                     
+                midi_data[1].remove(chordSequence[i])                             
+                replacingChords['chord{0}'.format(i)] = chord.Chord(chordNotes)   
                 replacingChords['chord{0}'.format(i)].quarterLength = length
-                midi_data[1].insert(location,replacingChords['chord{0}'.format(i)])  #insert replacing chord
+                midi_data[1].insert(location,replacingChords['chord{0}'.format(i)])  
 
     return midi_data
 
@@ -113,6 +94,8 @@ def melody2matrix(solo):
     midi_data = parse_midi(solo)
     #Indices: 0-127: midi pitch, 128: rest?, 129-225 :note length
     note_embedding_size = 225  
+    duration_LCD = 12
+    max_note_length = 96
     melody,progression = midi_data.getElementsByClass('Part')
     melodyMatrix = np.zeros([note_embedding_size,0])
     for nota in melody.recurse().getElementsByClass(['Note','Rest']):
@@ -122,9 +105,9 @@ def melody2matrix(solo):
         else:
             height = nota.pitch.midi
         note_vect[height] = 1
-        length = min(12*float(nota.quarterLength),96)               #mapping durations to integers 0,1,2,3,4,6,...; max duration=96 (2 measures)
-        duration_idx = int(length)                                  #mapping the integers above to 0,1,2,3,4,5,6,7,8,etc
-        note_vect[129+duration_idx] = 1                            #the duration encoding begins at entry 129
+        length = min(duration_LCD*float(nota.quarterLength),max_note_length)               
+        duration_idx = int(length)                                  
+        note_vect[129+duration_idx] = 1                            
         melodyMatrix = np.append(melodyMatrix,note_vect,axis=1)
         
     return melodyMatrix
