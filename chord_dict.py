@@ -95,8 +95,8 @@ def chord_dict():
     return CHORDS
 
 '''
-Getting the chords in the dictionary in a multi-hot-vector form,
-root and chord notes encoded.
+Getting the chords in the dictionary in a multi-hot vector form,
+root and chord notes have 1's.
 '''
 def chord_vect_dict():
     CHORDS=chord_dict()    

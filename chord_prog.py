@@ -6,7 +6,7 @@ Created on Tue Oct 23 19:19:09 2018
 @author: Amillo
 """
 import numpy as np
-import CHORD_DICT_Simple
+import chord_dict
 
 def main():
     CHORD_VECT = CHORD_DICT_Simple.chord_vect_dict()
@@ -16,18 +16,25 @@ def main():
     print('How many bars long is your progression? (enter an integer):')
     bars = int(input()) 
     total_beats = bars*4
-    chord_matrix = np.zeros([chord_embedding_size,total_beats]) #matrix that will contain the chord embeddings
-                                           
-    p=[]                                                        #list that will contain the chord symbols corresponting to each beat (without the symbols |'s)
-    for i in range(0,total_beats):                              #fill in with ?'s
+    #matrix that will contain the chord embeddings:
+    chord_matrix = np.zeros([chord_embedding_size,total_beats]) 
+    
+    #list that will contain the chord symbols corresponting to each beat (without the symbols |'s):                                      
+    p=[] 
+    #fill in with ?'s                                                       
+    for i in range(0,total_beats):                              
         p.append('?')
-       
-    m=total_beats+bars+1                                        #length of the vector containing also the |'s
-    p_temp=p[:]    
-    for i in range(0,m,5):                                      #insert |'s every 4 symbols
-        p_temp.insert(i,'|')
         
-    progression=''                                              #string that will display the progression
+    #length of the vector containing also the |'s   
+    m=total_beats+bars+1                                        
+    p_temp=p[:] 
+    
+    #insert |'s every 4 symbols
+    for i in range(0,m,5):                                      
+        p_temp.insert(i,'|')
+    
+    #string that will display the progression    
+    progression=''                                              
     for i in range(len(p_temp)):
         progression+=p_temp[i]+' '
         
@@ -57,8 +64,10 @@ def main():
                             chord_matrix[:,i]=np.transpose(chord)
                     for i in range(counter,t):
                         p[i]=symbol_input              
-                    p_temp=p[:]   
-                    for i in range(0,m,5):                                      #insert |'s every 4 symbols
+                    p_temp=p[:]  
+                    
+                    #insert |'s every 4 symbols:
+                    for i in range(0,m,5):                                      
                         p_temp.insert(i,'|')
                     progression=''
                     for i in range(len(p_temp)):
