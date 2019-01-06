@@ -13,7 +13,7 @@ from my_utils import melody2matrix, softmax
 
 
 '''
-Naive model of two-layer LSTMs that predicts notes
+Naive model of  a two-layer LSTM that predicts notes
 without taking into account chords.
 '''
 
