@@ -127,3 +127,16 @@ def matrix2melody(melodyMatrix):
         melodyStream.append(nota)
         
     return melodyStream
+
+'''
+Obtain probability distributions for pitch and duration from predictions
+'''
+def get_prob_dist(prediction):
+    for i in range(prediction.shape[0]):
+        for j in range(prediction.shape[1]):
+            if prediction[i,j]<0:
+                prediction[i,j]=-1000
+    melody_prediction = softmax(prediction[:129,:])
+    rhythm_prediction = softmax(prediction[129:,:])
+    
+    return melody_prob , rhythm_prob
