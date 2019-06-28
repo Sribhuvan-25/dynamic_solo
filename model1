@@ -216,7 +216,7 @@ def train_parameters(E,S):
     return net_parameters
 
 '''
-Silly experiment to train the net:
+Silly experiment to test training the net:
     
 LR = 0.02
 epochs = 1000
