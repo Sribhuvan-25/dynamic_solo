@@ -3,7 +3,7 @@
 """
 Created on Mon Dec 31 14:06:02 2018
 
-@author: Amillo
+@author: Rodrigo Castro
 """
 
 from music21 import *

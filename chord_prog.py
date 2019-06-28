@@ -3,7 +3,7 @@
 """
 Created on Tue Oct 23 19:19:09 2018
 
-@author: Amillo
+@author: Rodrigo Castro
 """
 import numpy as np
 import chord_dict
