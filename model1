@@ -188,7 +188,7 @@ def net_train( e, s, dimensions, net_parameters ):
     return y_hat
 
 
-def train_parameters(E,S):
+def train_parameters(E,S,LR,epochs):
     dims = dimensions(E,S)
     z_size, Z_size, num_event_examples, num_events , event_emb_size, num_seq_examples, signal_emb_size = dims
     net_parameters = create_parameters(dims)
@@ -226,5 +226,5 @@ E = Variable(torch.Tensor([[[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1]],\
 S = [Variable(torch.Tensor([[0,1,0],[0,0,1],[0,1,0]])), \
      Variable(torch.Tensor([[0,1,0],[0,1,0],[0,1,0],[0,1,0]]))]
 
-net_parameters = train_parameters(E,S)
+net_parameters = train_parameters(E,S,LR,epochs)
 '''
