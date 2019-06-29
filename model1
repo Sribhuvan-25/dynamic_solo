@@ -12,6 +12,8 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 
 
+#------------------------UNDER CONSTRUCTION-------------------------------#
+
 '''
 Form of data:
 E is a tensor containing all of the sequences of (conditioning) events
