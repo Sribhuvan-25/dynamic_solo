@@ -12,7 +12,7 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 
 
-#---------------------------------------- UNDER CONSTRUCTION ----------------------------------------------#
+#--------------------------------------------------------------------------------------#
 
 '''
 Form of the data:
@@ -306,7 +306,7 @@ S = [Variable(torch.Tensor([[0,1,0],[0,0,1],[0,1,0]])), \
 
 
 num_event_examples, num_events , event_emb_size, num_seq_examples, signal_emb_size = dimensions(E,S)
-counting_vector      = torch.unsqueeze( torch.linspace(0, signal_emb_size - 1, signal_emb_size), 1 )
+counting_vector = torch.unsqueeze( torch.linspace(0, signal_emb_size - 1, signal_emb_size), 1 )
 net_parameters = create_parameters()
 net_parameters = train_parameters()
 
