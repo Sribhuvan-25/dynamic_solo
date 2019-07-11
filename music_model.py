@@ -94,8 +94,7 @@ def create_parameters():
 
 def get_durations_vector( signal_emb_size, idx_ini, idx_fin, subdivision):
     
-    durations_vector = torch.zeros(signal_emb_size,1)
-    
+    durations_vector = torch.zeros(signal_emb_size,1)  
     for i in range( idx_ini, idx_fin+1 ):
         durations_vector[i] = i - idx_ini
         
@@ -306,11 +305,9 @@ def net_predict(e):
 
 #---------------------------------------- UNDER CONSTRUCTION ------------------------------------------#
 
+#E,S = ?
 
-        
-
-
-
+'''
 torch.manual_seed(123)
 
 LR = 0.02
@@ -323,6 +320,6 @@ num_event_examples, num_events , event_emb_size, num_seq_examples, signal_emb_si
 durations_vector = get_durations_vector(225,129,224,12)
 net_parameters = create_parameters()
 net_parameters = train_parameters()
-
+'''
 
 

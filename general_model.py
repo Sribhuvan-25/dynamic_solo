@@ -90,8 +90,7 @@ def create_parameters():
 
 def get_durations_vector( signal_emb_size, idx_ini, idx_fin, subdivision):
     
-    durations_vector = torch.zeros(signal_emb_size,1)
-    
+    durations_vector = torch.zeros(signal_emb_size,1)   
     for i in range( idx_ini, idx_fin+1 ):
         durations_vector[i] = i - idx_ini
         
@@ -318,10 +317,10 @@ S = [Variable(torch.Tensor([[0,1,0],[0,0,1],[0,1,0]])), \
 
 num_event_examples, num_events , event_emb_size, num_seq_examples, signal_emb_size = dimensions(E,S)
 
-'''
-The durations vector depends on how the duration of the signals is encoded. In this example the duration of 
-a signal equals i such that s(i)==1.
-'''
+
+#The durations vector depends on how the duration of the signals is encoded. 
+#In this example the duration of a signal equals i such that s(i)==1.
+
 durations_vector = get_durations_vector( signal_emb_size, 0, signal_emb_size-1 , 1)
 
 net_parameters = create_parameters()
