@@ -16,10 +16,10 @@ import matplotlib.pyplot as plt
 
 '''
 Form of the data:
-E is a tensor containing all of the sequences of (conditioning) events
+E is a tensor containing all of the sequences of conditioning chords that we will call events
 Each event should be a row vector
 The shape of E should be [# event sequences, # events in each example , event embedding size]
-S is the list of tensors reach epresenting a signal sequence
+S is the list of tensors each epresenting a sequence of notes that we will call signals
 The signal sequence S[i] is conditioned to the event sequence E[i,:,:]
 Each signal should be a row vector
 i-th signal sequence length = S[i].size(0)
@@ -261,11 +261,11 @@ def net_predict(e):
     Z_prev               = Z_initial_hidden_state
     cell_Z_prev          = initial_memory_cell_Z
     signal_prev          = torch.zeros( 1 , signal_emb_size )
-    sequence_duration    = 0
+    dynamic_idx    = 0
     prediction_list      = []
-    while sequence_duration < event_steps-1 :
+    while dynamic_idx < event_steps-1 :
         
-        dynamic_idx          = int( torch.mm( signal_prev , counting_vector ) )
+        dynamic_idx         += int( torch.mm( signal_prev , counting_vector ) )
         conditioning_hidden  = torch.unsqueeze(z[dynamic_idx,:], 0)
     
         pre_cell_Z_step  = torch.tanh( torch.mm( Z_prev , W_ZZ ) + torch.mm( signal_prev , W_Zs ) + torch.mm(conditioning_hidden , W_Zz) + b_Z )
@@ -280,9 +280,7 @@ def net_predict(e):
     
         cell_Z_prev  = cell_Z_next
         Z_prev       = Z_next
-        signal_prev  = y_hat #torch.unsqueeze(y_hat, 0)
-        
-        sequence_duration += dynamic_idx
+        signal_prev  = y_hat 
     
     prediction = torch.cat(prediction_list)
     
@@ -290,7 +288,7 @@ def net_predict(e):
 
 
 
-#---------------------------------------SILLY EXPERIMENT TO TEST THE CODE-----------------------------------------------------#
+#--------------------------------------------------------------------------------------------#
 
 
 LR = 0.02
@@ -298,42 +296,11 @@ epochs = 1000
 z_size = 8       #hidden layer dimension of event LSTM
 Z_size = 8       #hidden layer dimension of signal LSTM
 
-#Silly data
-E = Variable(torch.Tensor([[[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1]],\
-                           [[0,0,0,1,0],[0,0,0,0,1],[0,1,0,0,0],[0,0,1,0,0]]]))   
-S = [Variable(torch.Tensor([[0,1,0],[0,0,1],[0,1,0]])), \
-     Variable(torch.Tensor([[0,1,0],[0,1,0],[0,1,0],[0,1,0]]))]
-
 
 num_event_examples, num_events , event_emb_size, num_seq_examples, signal_emb_size = dimensions(E,S)
-counting_vector      = torch.unsqueeze( torch.linspace(0, signal_emb_size - 1, signal_emb_size), 1 )
+counting_vector = torch.unsqueeze( torch.linspace(0, signal_emb_size - 1, signal_emb_size), 1 )
 net_parameters = create_parameters()
 net_parameters = train_parameters()
 
 
-#Testing the trained net:
-
-e0 = E[0,:,:]
-s0 = S[0]
-prediction_0 = net_predict(e0)
-print("Ground truth: "+ str(s0))
-print("Prediction: "+ str(prediction_0))
-
-e1 = E[1,:,:]
-s1 = S[1]
-prediction_1 = net_predict(e1)
-print("Ground truth: "+ str(s1))
-print("Prediction: "+ str(prediction_1))
-
-e_new = Variable(torch.Tensor([[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1],[0,1,0,0,0]]))
-s_new = Variable(torch.Tensor([[0,0,1],[0,1,0],[0,1,0]]))
-prediction_new = net_predict(e_new)
-print("Never seen ground truth: "+ str(s_new))
-print("Prediction: "+ str(prediction_new))
-
-e_new_long = Variable(torch.Tensor([[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1],[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1]]))
-s_new_long = Variable(torch.Tensor([[0,1,0],[0,0,1],[0,1,0],[0,1,0],[0,0,1],[0,1,0]]))
-prediction_new_long = net_predict(e_new_long)
-print("New longer never seen ground truth: "+ str(s_new_long))
-print("Prediction: "+ str(prediction_new_long))
 

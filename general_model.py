@@ -12,14 +12,12 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 
 
-#--------------------------------------------------------------------------------------#
-
 '''
 Form of the data:
 E is a tensor containing all of the sequences of (conditioning) events
 Each event should be a row vector
 The shape of E should be [# event sequences, # events in each example , event embedding size]
-S is the list of tensors reach epresenting a signal sequence
+S is the list of tensors each epresenting a signal sequence
 The signal sequence S[i] is conditioned to the event sequence E[i,:,:]
 Each signal should be a row vector
 i-th signal sequence length = S[i].size(0)
@@ -155,9 +153,10 @@ def net_train(e,s):
     Z_prev               = Z_initial_hidden_state
     cell_Z_prev          = initial_memory_cell_Z
     signal_prev          = torch.zeros( 1 , signal_emb_size )
+    dynamic_idx          = 0
     for i in range(0,signal_steps):
         
-        dynamic_idx          = int( torch.mm( signal_prev , counting_vector ) )
+        dynamic_idx         += int( torch.mm( signal_prev , counting_vector ) )
         conditioning_hidden  = torch.unsqueeze(z[dynamic_idx,:], 0)
     
         pre_cell_Z_step  = torch.tanh( torch.mm( Z_prev , W_ZZ ) + torch.mm( signal_prev , W_Zs ) + torch.mm(conditioning_hidden , W_Zz) + b_Z )
@@ -261,11 +260,13 @@ def net_predict(e):
     Z_prev               = Z_initial_hidden_state
     cell_Z_prev          = initial_memory_cell_Z
     signal_prev          = torch.zeros( 1 , signal_emb_size )
-    sequence_duration    = 0
     prediction_list      = []
-    while sequence_duration < event_steps-1 :
+    dynamic_idx          = 0
+    while dynamic_idx < event_steps-1 :
         
-        dynamic_idx          = int( torch.mm( signal_prev , counting_vector ) )
+        dynamic_idx         += int( torch.mm( signal_prev , counting_vector ) )
+        if dynamic_idx > event_steps-1:
+            break
         conditioning_hidden  = torch.unsqueeze(z[dynamic_idx,:], 0)
     
         pre_cell_Z_step  = torch.tanh( torch.mm( Z_prev , W_ZZ ) + torch.mm( signal_prev , W_Zs ) + torch.mm(conditioning_hidden , W_Zz) + b_Z )
@@ -280,9 +281,7 @@ def net_predict(e):
     
         cell_Z_prev  = cell_Z_next
         Z_prev       = Z_next
-        signal_prev  = y_hat #torch.unsqueeze(y_hat, 0)
-        
-        sequence_duration += dynamic_idx
+        signal_prev  = y_hat 
     
     prediction = torch.cat(prediction_list)
     
@@ -292,9 +291,10 @@ def net_predict(e):
 
 #---------------------------------------SILLY EXPERIMENT TO TEST THE CODE-----------------------------------------------------#
 
+torch.manual_seed(1)
 
 LR = 0.02
-epochs = 1000
+epochs = 1500
 z_size = 8       #hidden layer dimension of event LSTM
 Z_size = 8       #hidden layer dimension of signal LSTM
 
@@ -306,7 +306,11 @@ S = [Variable(torch.Tensor([[0,1,0],[0,0,1],[0,1,0]])), \
 
 
 num_event_examples, num_events , event_emb_size, num_seq_examples, signal_emb_size = dimensions(E,S)
+
+#The counting vector depends on how the duration of the signals is encoded. In this example the duration of 
+# a signal equals i such that s(i)==1. 
 counting_vector = torch.unsqueeze( torch.linspace(0, signal_emb_size - 1, signal_emb_size), 1 )
+
 net_parameters = create_parameters()
 net_parameters = train_parameters()
 
