@@ -88,6 +88,17 @@ def create_parameters():
     
     return net_parameters
 
+def get_durations_vector( signal_emb_size, idx_ini, idx_fin, subdivision):
+    
+    durations_vector = torch.zeros(signal_emb_size,1)
+    
+    for i in range( idx_ini, idx_fin+1 ):
+        durations_vector[i] = i - idx_ini
+        
+    durations_vector = durations_vector/subdivision
+    
+    return durations_vector
+
 
 def net_train(e,s):
     #e is one sequence of e.size(1) events
@@ -156,7 +167,7 @@ def net_train(e,s):
     dynamic_idx          = 0
     for i in range(0,signal_steps):
         
-        dynamic_idx         += int( torch.mm( signal_prev , counting_vector ) )
+        dynamic_idx         += int( torch.mm( signal_prev , durations_vector ) )
         conditioning_hidden  = torch.unsqueeze(z[dynamic_idx,:], 0)
     
         pre_cell_Z_step  = torch.tanh( torch.mm( Z_prev , W_ZZ ) + torch.mm( signal_prev , W_Zs ) + torch.mm(conditioning_hidden , W_Zz) + b_Z )
@@ -264,7 +275,7 @@ def net_predict(e):
     dynamic_idx          = 0
     while dynamic_idx < event_steps-1 :
         
-        dynamic_idx         += int( torch.mm( signal_prev , counting_vector ) )
+        dynamic_idx         += int( torch.mm( signal_prev , durations_vector ) )
         if dynamic_idx > event_steps-1:
             break
         conditioning_hidden  = torch.unsqueeze(z[dynamic_idx,:], 0)
@@ -291,7 +302,7 @@ def net_predict(e):
 
 #---------------------------------------SILLY EXPERIMENT TO TEST THE CODE-----------------------------------------------------#
 
-torch.manual_seed(1)
+torch.manual_seed(123)
 
 LR = 0.02
 epochs = 1500
@@ -307,9 +318,11 @@ S = [Variable(torch.Tensor([[0,1,0],[0,0,1],[0,1,0]])), \
 
 num_event_examples, num_events , event_emb_size, num_seq_examples, signal_emb_size = dimensions(E,S)
 
-#The counting vector depends on how the duration of the signals is encoded. In this example the duration of 
-# a signal equals i such that s(i)==1. 
-counting_vector = torch.unsqueeze( torch.linspace(0, signal_emb_size - 1, signal_emb_size), 1 )
+'''
+The durations vector depends on how the duration of the signals is encoded. In this example the duration of 
+a signal equals i such that s(i)==1.
+'''
+durations_vector = get_durations_vector( signal_emb_size, 0, signal_emb_size-1 , 1)
 
 net_parameters = create_parameters()
 net_parameters = train_parameters()
