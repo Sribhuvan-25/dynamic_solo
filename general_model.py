@@ -121,13 +121,7 @@ def net_train(e,s):
 
     event_steps = e.size(0)
     
-    pre_cell_z     = torch.zeros( event_steps , z_size )
-    gate_update_z  = torch.zeros( event_steps , z_size )
-    gate_forget_z  = torch.zeros( event_steps , z_size )
-    gate_output_z  = torch.zeros( event_steps , z_size )
-    cell_z         = torch.zeros( event_steps , z_size )
-    z              = torch.zeros( event_steps , z_size )
-      
+    z            = torch.zeros( event_steps , z_size )    
     z_prev       = z_initial_hidden_state
     cell_z_prev  = initial_memory_cell_z    
     for i in reversed(range(0,event_steps)):
@@ -140,26 +134,14 @@ def net_train(e,s):
         cell_z_next      = torch.mul( update_z , pre_cell_z_step ) + torch.mul( forget_z , cell_z_prev )
         z_next           = torch.mul( output_z , torch.tanh( cell_z_next ) )
         
-        pre_cell_z[i,:]     = pre_cell_z_step 
-        gate_update_z[i,:]  = update_z
-        gate_forget_z[i,:]  = forget_z
-        gate_output_z[i,:]  = output_z
-        cell_z[i,:]         = cell_z_next
-        z[i,:]              = z_next
-    
+        z[i,:]       = z_next   
         cell_z_prev  = cell_z_next
         z_prev       = z_next
 
         
     signal_steps = s.size(0)
-    
-    pre_cell_Z     = torch.zeros(signal_steps, Z_size)
-    gate_update_Z  = torch.zeros(signal_steps, Z_size)
-    gate_forget_Z  = torch.zeros(signal_steps, Z_size)
-    gate_output_Z  = torch.zeros(signal_steps, Z_size)
-    cell_Z         = torch.zeros(signal_steps, Z_size)    
-    Z              = torch.zeros(signal_steps, Z_size)
         
+    Z                    = torch.zeros(signal_steps, Z_size)       
     Z_prev               = Z_initial_hidden_state
     cell_Z_prev          = initial_memory_cell_Z
     signal_prev          = torch.zeros( 1 , signal_emb_size )
@@ -175,14 +157,8 @@ def net_train(e,s):
         output_Z         = torch.sigmoid( torch.mm( Z_prev , W_output_ZZ ) + torch.mm( signal_prev , W_output_Zs ) + b_output_Z )
         cell_Z_next      = torch.mul( update_Z , pre_cell_Z_step ) + torch.mul( forget_Z , cell_Z_prev )
         Z_next           = torch.mul( output_Z , torch.tanh( cell_Z_next ) )
-
-        pre_cell_Z[i,:]     = pre_cell_Z_step 
-        gate_update_Z[i,:]  = update_Z
-        gate_forget_Z[i,:]  = forget_Z
-        gate_output_Z[i,:]  = output_Z
-        cell_Z[i,:]         = cell_Z_next
-        Z[i,:]              = Z_next
-    
+        
+        Z[i,:]       = Z_next  
         cell_Z_prev  = cell_Z_next
         Z_prev       = Z_next
         signal_prev = torch.unsqueeze(s[i,:], 0)
@@ -217,6 +193,7 @@ def train_parameters():
     
     return net_parameters
 
+
 def net_predict(e):
     
     W_ze , W_zz , b_z ,\
@@ -237,13 +214,7 @@ def net_predict(e):
 
     event_steps = e.size(0)
     
-    pre_cell_z     = torch.zeros( event_steps , z_size )
-    gate_update_z  = torch.zeros( event_steps , z_size )
-    gate_forget_z  = torch.zeros( event_steps , z_size )
-    gate_output_z  = torch.zeros( event_steps , z_size )
-    cell_z         = torch.zeros( event_steps , z_size )
-    z              = torch.zeros( event_steps , z_size )
-      
+    z            = torch.zeros( event_steps , z_size )     
     z_prev       = z_initial_hidden_state
     cell_z_prev  = initial_memory_cell_z    
     for i in reversed(range(0,event_steps)):
@@ -256,25 +227,20 @@ def net_predict(e):
         cell_z_next      = torch.mul( update_z , pre_cell_z_step ) + torch.mul( forget_z , cell_z_prev )
         z_next           = torch.mul( output_z , torch.tanh( cell_z_next ) )
         
-        pre_cell_z[i,:]     = pre_cell_z_step 
-        gate_update_z[i,:]  = update_z
-        gate_forget_z[i,:]  = forget_z
-        gate_output_z[i,:]  = output_z
-        cell_z[i,:]         = cell_z_next
-        z[i,:]              = z_next
-    
+        z[i,:]       = z_next   
         cell_z_prev  = cell_z_next
         z_prev       = z_next
 
-        
+    #print('Predicting signal sequence...')    
     Z_prev               = Z_initial_hidden_state
     cell_Z_prev          = initial_memory_cell_Z
     signal_prev          = torch.zeros( 1 , signal_emb_size )
     prediction_list      = []
-    dynamic_idx          = 0
-    while dynamic_idx < event_steps-1 :
-        
-        dynamic_idx         += int( torch.mm( signal_prev , durations_vector ) )
+    seq_duration         = 0
+    while seq_duration < float(event_steps-1) :
+        seq_duration    += float(torch.mm( signal_prev , durations_vector ))
+        dynamic_idx      = int(seq_duration)
+
         if dynamic_idx > event_steps-1:
             break
         conditioning_hidden  = torch.unsqueeze(z[dynamic_idx,:], 0)
@@ -285,13 +251,18 @@ def net_predict(e):
         output_Z         = torch.sigmoid( torch.mm( Z_prev , W_output_ZZ ) + torch.mm( signal_prev , W_output_Zs ) + b_output_Z )
         cell_Z_next      = torch.mul( update_Z , pre_cell_Z_step ) + torch.mul( forget_Z , cell_Z_prev )
         Z_next           = torch.mul( output_Z , torch.tanh( cell_Z_next ) )
-        y_hat            = torch.round( F.softmax( torch.mm(Z_next, W_yZ ) + b_y , dim =1 ) )
+        Y_hat            = F.softmax( torch.mm(Z_next, W_yZ ) + b_y , dim =1 )
+        
+        _ , argmax = Y_hat.max(1)
+        y_hat = torch.zeros(Y_hat.size())
+        y_hat[0, int(argmax)] = 1             
         
         prediction_list.append(y_hat)
     
         cell_Z_prev  = cell_Z_next
         Z_prev       = Z_next
-        signal_prev  = y_hat 
+        signal_prev  = y_hat
+        #print( str(seq_duration) + ' time units generated')
     
     prediction = torch.cat(prediction_list)
     
@@ -301,12 +272,13 @@ def net_predict(e):
 
 #---------------------------------------SILLY EXPERIMENT TO TEST THE CODE-----------------------------------------------------#
 
+
 torch.manual_seed(123)
 
-LR = 0.02
+LR = 0.01
 epochs = 1500
-z_size = 8       #hidden layer dimension of event LSTM
-Z_size = 8       #hidden layer dimension of signal LSTM
+z_size = 16       #hidden layer dimension of event LSTM
+Z_size = 16       #hidden layer dimension of signal LSTM
 
 #Silly data
 E = Variable(torch.Tensor([[[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1]],\
@@ -331,25 +303,25 @@ net_parameters = train_parameters()
 
 e0 = E[0,:,:]
 s0 = S[0]
-prediction_0 = net_predict(e0)
 print("Ground truth: "+ str(s0))
+prediction_0 = net_predict(e0)
 print("Prediction: "+ str(prediction_0))
 
 e1 = E[1,:,:]
 s1 = S[1]
-prediction_1 = net_predict(e1)
 print("Ground truth: "+ str(s1))
+prediction_1 = net_predict(e1)
 print("Prediction: "+ str(prediction_1))
 
 e_new = Variable(torch.Tensor([[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1],[0,1,0,0,0]]))
 s_new = Variable(torch.Tensor([[0,0,1],[0,1,0],[0,1,0]]))
-prediction_new = net_predict(e_new)
 print("Never seen ground truth: "+ str(s_new))
+prediction_new = net_predict(e_new)
 print("Prediction: "+ str(prediction_new))
 
 e_new_long = Variable(torch.Tensor([[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1],[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1]]))
 s_new_long = Variable(torch.Tensor([[0,1,0],[0,0,1],[0,1,0],[0,1,0],[0,0,1],[0,1,0]]))
-prediction_new_long = net_predict(e_new_long)
 print("New longer never seen ground truth: "+ str(s_new_long))
+prediction_new_long = net_predict(e_new_long)
 print("Prediction: "+ str(prediction_new_long))
 

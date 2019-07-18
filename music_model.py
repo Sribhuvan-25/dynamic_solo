@@ -6,27 +6,45 @@ Created on Wed Jul 10 19:16:35 2019
 @author: Rodrigo Castro
 """
 
+import numpy as np
 import torch
 from torch.autograd import Variable
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
-import numpy as np
+from preprocess_dynamic import preprocess_solo
 
-
-#---------------------------------------- UNDER CONSTRUCTION ----------------------------------------------#
 
 '''
 Form of the data:
-E is a tensor containing all of the sequences of conditioning chords, which we will call events
+E is a tensor containing all of the sequences of (conditioning) events
 Each event should be a row vector
 The shape of E should be [# event sequences, # events in each example , event embedding size]
-S is the list of tensors each epresenting a sequence of notes that we will call signals
+S is the list of tensors each epresenting a signal sequence
 The signal sequence S[i] is conditioned to the event sequence E[i,:,:]
 Each signal should be a row vector
 i-th signal sequence length = S[i].size(0)
 z_size denotes the hidden layer size for event sequence E
 Z_size denotes the hidden layer size for signal sequence S
 '''
+
+#Solo data in Pytorch format for the net (signals and events in row form):
+def get_data(solo):
+    melodyTrain, progressionTrain = preprocess_solo(solo)
+
+    progressionTrain = np.stack(progressionTrain)
+    event_data = Variable(torch.from_numpy(progressionTrain))
+    E = event_data.transpose(1,2)
+    E = E.type(torch.FloatTensor)
+    
+    S=[]
+    for window in melodyTrain:
+        window = np.stack(window)
+        window = Variable(torch.from_numpy(window))
+        window = window.transpose(0,1)
+        window = window.type(torch.FloatTensor)
+        S.append(window)
+   
+    return E , S
 
 
 def dimensions(E,S): 
@@ -91,10 +109,9 @@ def create_parameters():
     
     return net_parameters
 
-
 def get_durations_vector( signal_emb_size, idx_ini, idx_fin, subdivision):
     
-    durations_vector = torch.zeros(signal_emb_size,1)  
+    durations_vector = torch.zeros(signal_emb_size,1)   
     for i in range( idx_ini, idx_fin+1 ):
         durations_vector[i] = i - idx_ini
         
@@ -125,13 +142,7 @@ def net_train(e,s):
 
     event_steps = e.size(0)
     
-    pre_cell_z     = torch.zeros( event_steps , z_size )
-    gate_update_z  = torch.zeros( event_steps , z_size )
-    gate_forget_z  = torch.zeros( event_steps , z_size )
-    gate_output_z  = torch.zeros( event_steps , z_size )
-    cell_z         = torch.zeros( event_steps , z_size )
-    z              = torch.zeros( event_steps , z_size )
-      
+    z            = torch.zeros( event_steps , z_size )    
     z_prev       = z_initial_hidden_state
     cell_z_prev  = initial_memory_cell_z    
     for i in reversed(range(0,event_steps)):
@@ -144,26 +155,14 @@ def net_train(e,s):
         cell_z_next      = torch.mul( update_z , pre_cell_z_step ) + torch.mul( forget_z , cell_z_prev )
         z_next           = torch.mul( output_z , torch.tanh( cell_z_next ) )
         
-        pre_cell_z[i,:]     = pre_cell_z_step 
-        gate_update_z[i,:]  = update_z
-        gate_forget_z[i,:]  = forget_z
-        gate_output_z[i,:]  = output_z
-        cell_z[i,:]         = cell_z_next
-        z[i,:]              = z_next
-    
+        z[i,:]       = z_next   
         cell_z_prev  = cell_z_next
         z_prev       = z_next
 
         
     signal_steps = s.size(0)
-    
-    pre_cell_Z     = torch.zeros(signal_steps, Z_size)
-    gate_update_Z  = torch.zeros(signal_steps, Z_size)
-    gate_forget_Z  = torch.zeros(signal_steps, Z_size)
-    gate_output_Z  = torch.zeros(signal_steps, Z_size)
-    cell_Z         = torch.zeros(signal_steps, Z_size)    
-    Z              = torch.zeros(signal_steps, Z_size)
         
+    Z                    = torch.zeros(signal_steps, Z_size)       
     Z_prev               = Z_initial_hidden_state
     cell_Z_prev          = initial_memory_cell_Z
     signal_prev          = torch.zeros( 1 , signal_emb_size )
@@ -179,14 +178,8 @@ def net_train(e,s):
         output_Z         = torch.sigmoid( torch.mm( Z_prev , W_output_ZZ ) + torch.mm( signal_prev , W_output_Zs ) + b_output_Z )
         cell_Z_next      = torch.mul( update_Z , pre_cell_Z_step ) + torch.mul( forget_Z , cell_Z_prev )
         Z_next           = torch.mul( output_Z , torch.tanh( cell_Z_next ) )
-
-        pre_cell_Z[i,:]     = pre_cell_Z_step 
-        gate_update_Z[i,:]  = update_Z
-        gate_forget_Z[i,:]  = forget_Z
-        gate_output_Z[i,:]  = output_Z
-        cell_Z[i,:]         = cell_Z_next
-        Z[i,:]              = Z_next
-    
+        
+        Z[i,:]       = Z_next  
         cell_Z_prev  = cell_Z_next
         Z_prev       = Z_next
         signal_prev = torch.unsqueeze(s[i,:], 0)
@@ -221,6 +214,7 @@ def train_parameters():
     
     return net_parameters
 
+
 def net_predict(e):
     
     W_ze , W_zz , b_z ,\
@@ -241,13 +235,7 @@ def net_predict(e):
 
     event_steps = e.size(0)
     
-    pre_cell_z     = torch.zeros( event_steps , z_size )
-    gate_update_z  = torch.zeros( event_steps , z_size )
-    gate_forget_z  = torch.zeros( event_steps , z_size )
-    gate_output_z  = torch.zeros( event_steps , z_size )
-    cell_z         = torch.zeros( event_steps , z_size )
-    z              = torch.zeros( event_steps , z_size )
-      
+    z            = torch.zeros( event_steps , z_size )     
     z_prev       = z_initial_hidden_state
     cell_z_prev  = initial_memory_cell_z    
     for i in reversed(range(0,event_steps)):
@@ -260,25 +248,19 @@ def net_predict(e):
         cell_z_next      = torch.mul( update_z , pre_cell_z_step ) + torch.mul( forget_z , cell_z_prev )
         z_next           = torch.mul( output_z , torch.tanh( cell_z_next ) )
         
-        pre_cell_z[i,:]     = pre_cell_z_step 
-        gate_update_z[i,:]  = update_z
-        gate_forget_z[i,:]  = forget_z
-        gate_output_z[i,:]  = output_z
-        cell_z[i,:]         = cell_z_next
-        z[i,:]              = z_next
-    
+        z[i,:]       = z_next   
         cell_z_prev  = cell_z_next
         z_prev       = z_next
 
-        
+    print('Predicting solo...')    
     Z_prev               = Z_initial_hidden_state
     cell_Z_prev          = initial_memory_cell_Z
     signal_prev          = torch.zeros( 1 , signal_emb_size )
     prediction_list      = []
-    dynamic_idx          = 0
-    while dynamic_idx < event_steps-1 :
-        
-        dynamic_idx         += int( torch.mm( signal_prev , durations_vector ) )
+    melody_duration      = 0 
+    while melody_duration < float(event_steps-1) :
+        melody_duration    += float(torch.mm( signal_prev , durations_vector ))
+        dynamic_idx         = int(melody_duration)
         if dynamic_idx > event_steps-1:
             break
         conditioning_hidden  = torch.unsqueeze(z[dynamic_idx,:], 0)
@@ -289,37 +271,55 @@ def net_predict(e):
         output_Z         = torch.sigmoid( torch.mm( Z_prev , W_output_ZZ ) + torch.mm( signal_prev , W_output_Zs ) + b_output_Z )
         cell_Z_next      = torch.mul( update_Z , pre_cell_Z_step ) + torch.mul( forget_Z , cell_Z_prev )
         Z_next           = torch.mul( output_Z , torch.tanh( cell_Z_next ) )
-        y_hat            = torch.round( F.softmax( torch.mm(Z_next, W_yZ ) + b_y , dim =1 ) )
+        Y_hat            = F.softmax( torch.mm(Z_next, W_yZ ) + b_y , dim =1 )
+        
+        note_max , note_argmax = Y_hat[0,0:129].max(0)
+        rhythm_max , rhythm_argmax = Y_hat[0,129:].max(0)
+        y_hat = torch.zeros(Y_hat.size())
+        y_hat[0, int(note_argmax)] = 1  
+        y_hat[0, int(128+int(rhythm_argmax))] = 1            
         
         prediction_list.append(y_hat)
     
         cell_Z_prev  = cell_Z_next
         Z_prev       = Z_next
-        signal_prev  = y_hat 
+        signal_prev  = y_hat
+        print( str(melody_duration) + ' beats generated')
     
     prediction = torch.cat(prediction_list)
     
     return prediction
 
 
+#------------------------------------- UNDER CONSTRUCTION --------------------------------------------#
 
-#---------------------------------------- UNDER CONSTRUCTION ------------------------------------------#
-
-#E,S = ?
-
-'''
-torch.manual_seed(123)
-
-LR = 0.02
-epochs = 1500
-z_size = 8       #hidden layer dimension of event LSTM
-Z_size = 8       #hidden layer dimension of signal LSTM
-
+torch.manual_seed(1234)
+    
+E , S = get_data('anOscarFor.mid')
+ 
+LR = 0.005
+epochs = 100
+z_size = 16       #hidden layer dimension of event LSTM
+Z_size = 64       #hidden layer dimension of signal LSTM
 
 num_event_examples, num_events , event_emb_size, num_seq_examples, signal_emb_size = dimensions(E,S)
-durations_vector = get_durations_vector(225,129,224,12)
+durations_vector = get_durations_vector( signal_emb_size, 129, signal_emb_size-1 , 12)
 net_parameters = create_parameters()
 net_parameters = train_parameters()
+
+
 '''
+#Testing the trained net:
 
+e0 = E[0,:,:]
+s0 = S[0]
+prediction_0 = net_predict(e0)
+print("Ground truth: "+ str(s0))
+print("Prediction: "+ str(prediction_0))
 
+e1 = E[1,:,:]
+s1 = S[1]
+prediction_1 = net_predict(e1)
+print("Ground truth: "+ str(s1))
+print("Prediction: "+ str(prediction_1))
+'''

@@ -9,7 +9,7 @@ Created on Mon Dec 31 14:06:02 2018
 from music21 import *
 import numpy as np
 
-#-------------------------- HELPER FUNCTIONS ------------------------------------# 
+
 
 '''
 Parse the corpus and fix potential problems
@@ -88,7 +88,7 @@ def softmax(x):
     e_x = np.exp(x - np.max(x))
     return e_x / e_x.sum(axis=0)
 
-#-------------------------- PUPLIC FUNCTIONS ---------------------------------#
+
     
 def melody2matrix(solo):
     midi_data = parse_midi(solo)
@@ -115,7 +115,7 @@ def melody2matrix(solo):
 
 def matrix2melody(melodyMatrix):
     m,n = melodyMatrix.shape
-    melodyStream=stream.Stream()
+    melodyStream = stream.Stream()
     
     #if you wnat to impose a time and key signature add:
     #melodyStream.timeSignature = meter.TimeSignature('4/4')
@@ -139,4 +139,4 @@ def get_prob_dist(prediction):
     melody_prediction = softmax(prediction[:129,:])
     rhythm_prediction = softmax(prediction[129:,:])
     
-    return melody_prob , rhythm_prob
+    return melody_prediction , rhythm_prediction

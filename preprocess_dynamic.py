@@ -8,6 +8,8 @@ Created on Sat Nov 24 12:49:32 2018
 
 from music21 import *
 import numpy as np
+import torch
+from torch.autograd import Variable
 from my_utils import parse_midi
 
 #-------------------------- HELPER FUNCTIONS ------------------------------------# 
@@ -20,15 +22,17 @@ def split_solo(midi_data):
         #pending
     
     #getting the total number of measures of the solo:
-    totalMeasures = midi_data.quarterLength / 4
+    totalMeasures = int(midi_data.quarterLength / 4)
     
     #define the measure-window size for training examples:
-    windowSize = 4
+    #windowSize = 4
+    windowSize = totalMeasures
     
+  
     #number of training windows:
     totalWindows = int(totalMeasures - windowSize + 1)
     
-    print('The solo contains '+str(int(totalMeasures))+' measures. '\
+    print('The solo contains '+str(totalMeasures)+' measures. '\
           'We will divide the solo into '+str(totalWindows)+' smaller (sliding) windows '\
           'of '+str(windowSize)+' measures each.')
     
@@ -43,16 +47,19 @@ def split_solo(midi_data):
     '''
     Transposing to all keys up and down
     '''       
-    #Charlie Parker's lowest note play in the corpus is D3 (50), and the highest is G#5 (80)   
+    #Charlie Parker's lowest note play in the corpus is D3 (50), and the highest is G#5 (80)
+
     transposedTrainingWindows = []
-    for intervalo in range(-12,13):
+    for intervalo in range(0,1):
         if intervalo == 0:
             continue
         print('transposing all training windows '+str(intervalo)+' half steps...')
         for elemento in trainingWindows:
             transposedTrainingWindows.append(elemento.transpose(intervalo))
     
+    
     allTrainingWindows = trainingWindows + transposedTrainingWindows
+
 
     return allTrainingWindows
 
@@ -101,18 +108,18 @@ def encode_windows(allTrainingWindows):
         count += 1 
         if count%100 == 0:
             print(str(count)+' windows of '+str(m)+' have been encoded...')
+            
         
-    return melodyTrain,progressionTrain
+    return melodyTrain , progressionTrain
                 
 
-#-------------------------- PUBLIC FUCNTION ---------------------------------#
+#-------------------------- PUBLIC FUNCTIONS ---------------------------------#
 
 def preprocess_solo(solo):
     midi_data = parse_midi(solo)
     allTrainingWindows = split_solo(midi_data)
-    melodyTrain,progressionTrain = encode_windows(allTrainingWindows)
+    melodyTrain , progressionTrain = encode_windows(allTrainingWindows)
     
     return melodyTrain, progressionTrain
-
 
     
