@@ -10,8 +10,11 @@ import numpy as np
 import torch
 from torch.autograd import Variable
 import torch.nn.functional as F
+from music21 import *
 import matplotlib.pyplot as plt
 from preprocess_dynamic import preprocess_solo
+from my_utils import *
+from chord_prog import user_progression
 
 
 '''
@@ -184,7 +187,10 @@ def net_train(e,s):
         Z_prev       = Z_next
         signal_prev = torch.unsqueeze(s[i,:], 0)
     
-    y_hat = F.softmax( torch.mm(Z, W_yZ ) + b_y , dim=1 )
+    y_hat_pre     = torch.mm(Z, W_yZ ) + b_y
+    y_hat_pitch   = F.softmax( y_hat_pre[:,0:129] , dim=1 )
+    y_hat_rhythm  = F.softmax( y_hat_pre[:,129:] , dim=1 )
+    y_hat         = torch.cat((y_hat_pitch , y_hat_rhythm ), dim = 1)
     
     return y_hat
 
@@ -271,11 +277,14 @@ def net_predict(e):
         output_Z         = torch.sigmoid( torch.mm( Z_prev , W_output_ZZ ) + torch.mm( signal_prev , W_output_Zs ) + b_output_Z )
         cell_Z_next      = torch.mul( update_Z , pre_cell_Z_step ) + torch.mul( forget_Z , cell_Z_prev )
         Z_next           = torch.mul( output_Z , torch.tanh( cell_Z_next ) )
-        Y_hat            = F.softmax( torch.mm(Z_next, W_yZ ) + b_y , dim =1 )
+        Y_hat_pre        = torch.mm(Z_next, W_yZ ) + b_y
+        Y_hat_pitch      = F.softmax( Y_hat_pre[:,0:129], dim = 1 )
+        Y_hat_rhythm     = F.softmax( Y_hat_pre[:,129:], dim = 1 )
         
-        note_max , note_argmax = Y_hat[0,0:129].max(0)
-        rhythm_max , rhythm_argmax = Y_hat[0,129:].max(0)
-        y_hat = torch.zeros(Y_hat.size())
+        
+        note_max , note_argmax = Y_hat_pitch.max(1)
+        rhythm_max , rhythm_argmax = Y_hat_rhythm.max(1)
+        y_hat = torch.zeros(Y_hat_pre.size())
         y_hat[0, int(note_argmax)] = 1  
         y_hat[0, int(128+int(rhythm_argmax))] = 1            
         
@@ -298,9 +307,9 @@ torch.manual_seed(1234)
 E , S = get_data('anOscarFor.mid')
  
 LR = 0.005
-epochs = 100
+epochs = 1500
 z_size = 16       #hidden layer dimension of event LSTM
-Z_size = 64       #hidden layer dimension of signal LSTM
+Z_size = 32       #hidden layer dimension of signal LSTM
 
 num_event_examples, num_events , event_emb_size, num_seq_examples, signal_emb_size = dimensions(E,S)
 durations_vector = get_durations_vector( signal_emb_size, 129, signal_emb_size-1 , 12)
@@ -308,18 +317,18 @@ net_parameters = create_parameters()
 net_parameters = train_parameters()
 
 
-'''
 #Testing the trained net:
 
-e0 = E[0,:,:]
-s0 = S[0]
-prediction_0 = net_predict(e0)
-print("Ground truth: "+ str(s0))
-print("Prediction: "+ str(prediction_0))
+print('Let\'s generate a new solo.')
+#chord_matrix = E[0,0:8,:]
+progression , chord_matrix = user_progression()
+chord_matrix = torch.from_numpy(chord_matrix)
+chord_matrix = chord_matrix.transpose(0,1)
+chord_matrix = chord_matrix.type(torch.FloatTensor)
+solo_prediction = net_predict(chord_matrix)
+solo_prediction = solo_prediction.transpose(0,1)
+solo_prediction = solo_prediction.numpy()
+solo = matrix2melody(solo_prediction)
 
-e1 = E[1,:,:]
-s1 = S[1]
-prediction_1 = net_predict(e1)
-print("Ground truth: "+ str(s1))
-print("Prediction: "+ str(prediction_1))
-'''
+solo.show('text')
+

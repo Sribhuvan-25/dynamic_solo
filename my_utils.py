@@ -121,7 +121,7 @@ def matrix2melody(melodyMatrix):
     #melodyStream.timeSignature = meter.TimeSignature('4/4')
     #melodyStream.keySignature = key.Key('C')
     
-    for i in range(m):
+    for i in range(n):
         vector = melodyMatrix[:,i]
         nota = vect2note(vector)
         melodyStream.append(nota)

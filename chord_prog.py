@@ -8,7 +8,7 @@ Created on Tue Oct 23 19:19:09 2018
 import numpy as np
 import chord_dict
 
-def main():
+def user_progression():
     CHORD_VECT = chord_dict.chord_vect_dict()
     
     chord_embedding_size=24 #24x1
@@ -53,7 +53,7 @@ def main():
                 break
             else:
                 chord=CHORD_VECT[symbol_input]      
-                print('For how many beats of that chord?')
+                print('How many beats of that chord?')
                 beats_input = int(input())
                 t=counter+beats_input
                 if t > total_beats:
@@ -80,7 +80,9 @@ def main():
                     else:
                         continue
 
-    return progression,chord_matrix
-  
+    return progression , chord_matrix
+
+'''  
 if __name__  == '__main__':                
-    chord_progression,chord_embeddings=main()
+    chord_progression,chord_embeddings = user_progression()
+    '''
