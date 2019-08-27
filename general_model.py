@@ -163,28 +163,34 @@ def net_train(e,s):
         Z_prev       = Z_next
         signal_prev = torch.unsqueeze(s[i,:], 0)
     
-    y_hat = F.softmax( torch.mm(Z, W_yZ ) + b_y , dim=1 )
+    #y_hat = F.softmax( torch.mm(Z, W_yZ ) + b_y , dim=1 )  #uncomment if loss func is MSE
+    #y_hat = torch.sigmoid( torch.mm(Z, W_yZ ) + b_y )
+    y_hat = torch.mm(Z, W_yZ ) + b_y 
     
     return y_hat
 
 
 def train_parameters():
     
-    loss_func = torch.nn.MSELoss()
+    #loss_func = torch.nn.MSELoss()   #if used, uncomment y_hat with Softmax in net_train
+    loss_func = torch.nn.BCEWithLogitsLoss()
     optimizer = torch.optim.RMSprop(net_parameters,lr=LR, alpha=0.99, eps=1e-6, weight_decay=1e-6, momentum=0, centered=True)
     
     J_hist=[]
     for i in range(epochs):
         for j in range(num_seq_examples):
+            #print('Epoch: '+str(i)+', training example: '+str(j))
             e = E[j,:,:]
             s = S[j]
             y_hat = net_train(e,s)
             J = loss_func(y_hat,s)
             optimizer.zero_grad()
             J.backward()
-            optimizer.step()
-        J_hist.append(J)
+            optimizer.step()    
         print(J)
+        J_hist.append(J)       
+        if i%200 == 0 :
+            print(str(i)+' epochs completed')
     
     plt.plot(J_hist)
     plt.xlabel('iterations')
@@ -252,6 +258,7 @@ def net_predict(e):
         cell_Z_next      = torch.mul( update_Z , pre_cell_Z_step ) + torch.mul( forget_Z , cell_Z_prev )
         Z_next           = torch.mul( output_Z , torch.tanh( cell_Z_next ) )
         Y_hat            = F.softmax( torch.mm(Z_next, W_yZ ) + b_y , dim =1 )
+        #Y_hat            = torch.sigmoid( torch.mm(Z_next, W_yZ ) + b_y )
         
         _ , argmax = Y_hat.max(1)
         y_hat = torch.zeros(Y_hat.size())
@@ -275,10 +282,10 @@ def net_predict(e):
 
 torch.manual_seed(123)
 
-LR = 0.01
+LR = 0.02
 epochs = 1500
 z_size = 16       #hidden layer dimension of event LSTM
-Z_size = 16       #hidden layer dimension of signal LSTM
+Z_size = 32       #hidden layer dimension of signal LSTM
 
 #Silly data
 E = Variable(torch.Tensor([[[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1]],\

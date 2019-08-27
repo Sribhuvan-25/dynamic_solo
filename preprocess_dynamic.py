@@ -8,28 +8,26 @@ Created on Sat Nov 24 12:49:32 2018
 
 from music21 import *
 import numpy as np
+from my_utils import parse_midi
 import torch
 from torch.autograd import Variable
-from my_utils import parse_midi
+import random
+
 
 #-------------------------- HELPER FUNCTIONS ------------------------------------# 
 
-'''
-Splitting the solo into small training windows
-'''
-def split_solo(midi_data):
-    #make sure the piece is in 4/4:
-        #pending
-    
+
+#Splits the solo into smaller training windows
+#make sure the piece is in 4/4
+def split_solo(midi_data , window_size):
+        
     #getting the total number of measures of the solo:
     totalMeasures = int(midi_data.quarterLength / 4)
+    if window_size == 'all':
+        windowSize = totalMeasures        
+    else:
+        windowSize = window_size 
     
-    #define the measure-window size for training examples:
-    #windowSize = 4
-    windowSize = totalMeasures
-    
-  
-    #number of training windows:
     totalWindows = int(totalMeasures - windowSize + 1)
     
     print('The solo contains '+str(totalMeasures)+' measures. '\
@@ -44,11 +42,7 @@ def split_solo(midi_data):
         print('Fetching training window '+str(beginWindow)+'/'+str(totalWindows)+'...')
         trainingWindows.append(midi_data.measures(beginWindow,endWindow))
               
-    '''
-    Transposing to all keys up and down
-    '''       
-    #Charlie Parker's lowest note play in the corpus is D3 (50), and the highest is G#5 (80)
-
+    #Transposing to all keys up and down      
     transposedTrainingWindows = []
     for intervalo in range(0,1):
         if intervalo == 0:
@@ -56,25 +50,21 @@ def split_solo(midi_data):
         print('transposing all training windows '+str(intervalo)+' half steps...')
         for elemento in trainingWindows:
             transposedTrainingWindows.append(elemento.transpose(intervalo))
-    
-    
+      
     allTrainingWindows = trainingWindows + transposedTrainingWindows
-
 
     return allTrainingWindows
 
-'''
-Converting each window to one-hot encodings
-'''
 
+#Converts each window to multi-hot encodings
 def encode_windows(allTrainingWindows):
     chord_embedding_size = 24                                                   #24x1  0-11:root, 12-23: chord notes
     note_embedding_size = 225                                                   #0-127: midi pitch, 128: rest?, 129-201 :note length
     
     count = 0
     m = len(allTrainingWindows)
-    melodyTrain = []                                                            #List of melody training matrices, not array because every melody will be different length :(
-    progressionTrain = []                                                       #Empty list to stack progression training matrices (all are same length) 
+    melodyTrain = []                                                           
+    progressionTrain = []                                                        
     for window in allTrainingWindows:
         melody,progression = window.getElementsByClass('Part')
         melodyMatrix = np.zeros([note_embedding_size,0])
@@ -94,7 +84,7 @@ def encode_windows(allTrainingWindows):
             
         for acorde in progression.recurse().getElementsByClass(chord.Chord):
             chord_vect = np.zeros([chord_embedding_size,1])
-            chord_length = int(acorde.quarterLength)                            #all chords in Parker corpus have an integer length, so we are OK with int()
+            chord_length = int(acorde.quarterLength)                            #all chords in the corpus should have an integer length
             chord_offset = int(acorde.offset)          
             root_idx = acorde.root().midi % 12
             chord_vect[root_idx] = 1
@@ -108,18 +98,47 @@ def encode_windows(allTrainingWindows):
         count += 1 
         if count%100 == 0:
             print(str(count)+' windows of '+str(m)+' have been encoded...')
-            
-        
+                    
     return melodyTrain , progressionTrain
                 
 
-#-------------------------- PUBLIC FUNCTIONS ---------------------------------#
+#---------------------------- PUBLIC FUNCTIONS ---------------------------------#
 
-def preprocess_solo(solo):
+
+#Solo data in Numpy format (notes and chords in column form):
+def preprocess_solo(solo , window_size ):
     midi_data = parse_midi(solo)
-    allTrainingWindows = split_solo(midi_data)
+    allTrainingWindows = split_solo(midi_data , window_size)
     melodyTrain , progressionTrain = encode_windows(allTrainingWindows)
+    AllTrain = list( zip(melodyTrain,progressionTrain) )
+    random.shuffle(AllTrain)
+    melodyTrain , progressionTrain = zip(*AllTrain)
     
     return melodyTrain, progressionTrain
 
+
+#Solo data in Pytorch format (notes and chords in row form):
+def get_data(solo , window_size):
+    melodyTrain, progressionTrain = preprocess_solo(solo , window_size )
+
+    progressionTrain = np.stack(progressionTrain)
+    event_data = Variable(torch.from_numpy(progressionTrain))
+    E = event_data.transpose(1,2)
+    E = E.type(torch.FloatTensor)
     
+    S=[]
+    for window in melodyTrain:
+        window = np.stack(window)
+        window = Variable(torch.from_numpy(window))
+        window = window.transpose(0,1)
+        window = window.type(torch.FloatTensor)
+        S.append(window)
+   
+    return E , S
+
+
+# select window_size = 'all' to make the whole solo a single training example
+def save_data( solo , window_size , filename):  
+    E , S =  get_data(solo , window_size )
+    Training_data = [ E , S ]
+    torch.save(Training_data, filename)

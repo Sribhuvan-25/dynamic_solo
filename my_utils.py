@@ -10,20 +10,12 @@ from music21 import *
 import numpy as np
 
 
-
-'''
-Parse the corpus and fix potential problems
-'''
+#Parse the corpus and fix potential problems
 def parse_midi(solo):
     midi_data = converter.parse(solo)
    
-    '''
-    Making sure the last rest at the end of the solo is accounted for
-    '''   
-    #split into solo part and progression part:
+    #Making sure the last rest at the end of the solo is accounted for:
     soloPart, progressionPart = midi_data.getElementsByClass('Part')
-    
-    #get lengths:
     initial_soloLength = soloPart.quarterLength
     progressionLength = progressionPart.quarterLength
     
@@ -38,17 +30,13 @@ def parse_midi(solo):
     
     assert midi_data[0].quarterLength == midi_data[1].quarterLength
             
-        
-    '''
-    Correcting | Cmaj7 |  Rest | where it should be | Cmaj7 |  %  |
-    '''    
+    #Correcting | Cmaj7 |  Rest | where it should be | Cmaj7 |  %  | :
     chordSequence = midi_data[1].recurse().getElementsByClass(['Chord','Rest'])
     n=len(chordSequence)
     
-    #dictionary of chords that will replace the rests:
     replacingChords = {}    
 
-    #I made sure the solos in the corpus do not start without an initial chord, but just in case:                                                    
+    #Make sure the solos in the corpus do not start without an initial chord:                                                 
     if chordSequence[0].isRest:                                                 
             print('The beginning of the progression does not have a chord!')     
     else:
@@ -65,9 +53,7 @@ def parse_midi(solo):
     return midi_data
 
 
-'''
-Converts a two-hot vector into a note or rest
-'''
+#Converts a two-hot vector into a note or rest:
 def vect2note(vector):
     note_embedding_size = 225 
     assert np.shape(vector) == (note_embedding_size,)
@@ -82,12 +68,6 @@ def vect2note(vector):
         nota.quarterLength = duration
     
     return nota
-
-
-def softmax(x):
-    e_x = np.exp(x - np.max(x))
-    return e_x / e_x.sum(axis=0)
-
 
     
 def melody2matrix(solo):
@@ -128,15 +108,3 @@ def matrix2melody(melodyMatrix):
         
     return melodyStream
 
-'''
-Obtain probability distributions for pitch and duration from predictions
-'''
-def get_prob_dist(prediction):
-    for i in range(prediction.shape[0]):
-        for j in range(prediction.shape[1]):
-            if prediction[i,j]<0:
-                prediction[i,j]=-1000
-    melody_prediction = softmax(prediction[:129,:])
-    rhythm_prediction = softmax(prediction[129:,:])
-    
-    return melody_prediction , rhythm_prediction
