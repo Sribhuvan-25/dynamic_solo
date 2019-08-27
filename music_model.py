@@ -368,7 +368,7 @@ net_parameters = create_parameters()
 num_parameters = count_parameters(net_parameters)
 print('There are ' + str(num_parameters) + ' parameters to train.')
 optimizer = torch.optim.RMSprop(net_parameters,lr=LR, alpha=0.99, eps=1e-6, weight_decay = WeightDecay, momentum = Momentum, centered=True)
-#train_parameters_stoch( loss_func, optimizer )
+train_parameters_stoch( loss_func, optimizer )
 #train_parameters_batch( loss_func, optimizer )
 
 
