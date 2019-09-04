@@ -44,7 +44,7 @@ def split_solo(midi_data , window_size):
               
     #Transposing to all keys up and down      
     transposedTrainingWindows = []
-    for intervalo in range(0,1):
+    for intervalo in range(0,12):
         if intervalo == 0:
             continue
         print('transposing all training windows '+str(intervalo)+' half steps...')

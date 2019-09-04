@@ -13,6 +13,7 @@ import torch.nn.functional as F
 from music21 import *
 import matplotlib.pyplot as plt
 from user_progression import user_progression
+from my_utils import matrix2melody
 
 
 '''
@@ -104,7 +105,7 @@ def get_durations_vector( signal_emb_size, idx_ini, idx_fin, subdivision):
     
     durations_vector = torch.zeros(signal_emb_size,1)   
     for i in range( idx_ini, idx_fin+1 ):
-        durations_vector[i] = i - idx_ini + 1
+        durations_vector[i] = i - idx_ini #+ 1
         
     durations_vector = durations_vector/subdivision
     
@@ -196,12 +197,12 @@ def train_parameters_stoch( loss_func, optimizer ):
             optimizer.zero_grad()
             J.backward()
             optimizer.step()
-            if j%50 == 0:
+            if j%10 == 0:
                print('Epoch: '+str(i)+', examples trained: ' + str(j) + ', Cost: ' + str(J))
             J_hist.append(J)        
         #print('Epoch ' + str(i) + ', Cost: ' + str(J))
     
-    plt.plot(J_hist)
+    plt.plot(J_hist[5:])
     plt.xlabel('Gradient steps')
     vert_label=plt.ylabel('Loss')
     vert_label.set_rotation(0)
@@ -283,10 +284,10 @@ def net_predict(e):
     prediction_list      = []
     raw_prediction_list  = []
     melody_duration      = 0 
-    while melody_duration <= float(event_steps-1) :
+    while melody_duration <= float(event_steps-1):
         melody_duration += float(torch.mm( signal_prev , durations_vector ))
         dynamic_idx      = int(melody_duration)
-        if dynamic_idx > event_steps-1:
+        if dynamic_idx >= float(event_steps):
             break
         conditioning_hidden  = torch.unsqueeze(z[dynamic_idx,:], 0)
     
@@ -303,7 +304,10 @@ def net_predict(e):
         raw_y_hat        = torch.cat ((Y_hat_pitch,Y_hat_rhythm) , dim = 1)
         raw_prediction_list.append(raw_y_hat)        
         
-        note_max , note_argmax = Y_hat_pitch.max(1)
+        #note_max , note_argmax = Y_hat_pitch.max(1)
+        prob_dist = torch.distributions.Categorical(Y_hat_pitch)
+        note_argmax = int(prob_dist.sample())
+        
         rhythm_max , rhythm_argmax = Y_hat_rhythm.max(1)
         y_hat = torch.zeros(Y_hat_pre.size())
         y_hat[0, int(note_argmax)] = 1  
@@ -343,24 +347,20 @@ def predict_new():
 
 torch.manual_seed(12)
 
-E , S = torch.load('Dataset_window16.pt')
+E , S = torch.load('Dataset_windowAll_trans.pt')
 
 
-z_size = 16       #hidden layer dimension of event LSTM
+z_size = 32       #hidden layer dimension of event LSTM
 Z_size = 48       #hidden layer dimension of signal LSTM
  
-LR = 0.05
-epochs = 1000
+LR = 0.0005
+epochs = 100
 WeightDecay = 0 #1e-6
 Momentum = 0.5
 
 #loss_func = torch.nn.MSELoss()    #if used, return y_hat instead of y_hat_pre
 loss_func = torch.nn.BCEWithLogitsLoss()
 
-#Try with only one small training example:
-#E = E[0,0:8,:]
-#E = E.reshape(1,8,24)
-#S[0] = S[0][0:16,:]
 
 num_event_examples, num_events , event_emb_size, num_seq_examples, signal_emb_size = dimensions(E,S)
 durations_vector = get_durations_vector( signal_emb_size, 129, signal_emb_size-1 , 12)
@@ -375,6 +375,8 @@ train_parameters_stoch( loss_func, optimizer )
 #Testing the trained net:
 #solo, solo_prediction , raw_prediction = predict_new()
 
+
 #Importing parameters from file and testing:
 #net_parameters = torch.load('net_parameters_cpu.pt')
 #solo, solo_prediction , raw_prediction = predict_new()
+#solo.write('midi', 'midi_prueba.mid')
