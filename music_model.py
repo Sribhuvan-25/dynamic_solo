@@ -188,19 +188,17 @@ def train_parameters_stoch( loss_func, optimizer ):
     
     #stochastic:
     J_hist=[]
-    for i in range(1,epochs+1):
+    for epoch in range(1,epochs+1):
         for j in range(num_seq_examples):
+            optimizer.zero_grad()
             e = E[j,:,:]
             s = S[j]
             y_hat = net_train(e,s)
-            J = loss_func(y_hat,s)
-            optimizer.zero_grad()
+            J = loss_func(y_hat,s)           
             J.backward()
             optimizer.step()
-            if j%10 == 0:
-               print('Epoch: '+str(i)+', examples trained: ' + str(j) + ', Cost: ' + str(J))
             J_hist.append(J)        
-        #print('Epoch ' + str(i) + ', Cost: ' + str(J))
+        print('Epoch ' + str(epoch) + ', Cost: ' + str(J))
     
     plt.plot(J_hist[5:])
     plt.xlabel('Gradient steps')
@@ -217,7 +215,7 @@ def loss_sum():
         J = loss_func(y_hat,s)
         SUM = SUM + J
         if j%50 == 0:
-             print('Examples processed: ' + str(j))
+             print('Examples processed for loss: ' + str(j))
     SUM = SUM/num_seq_examples
              
     return SUM
@@ -226,13 +224,13 @@ def loss_sum():
 def train_parameters_batch( loss_func, optimizer ):
     
     J_hist=[]
-    for i in range(1,epochs+1):
-        J = loss_sum()
+    for epoch in range(1,epochs+1):
         optimizer.zero_grad()
+        J = loss_sum()
         J.backward()
         optimizer.step()
         J_hist.append(J)        
-        print('Epoch ' + str(i) + ', Cost: ' + str(J))
+        print('Epoch ' + str(epoch) + ', Cost: ' + str(J))
     
     plt.plot(J_hist)
     plt.xlabel('Epochs')
@@ -304,9 +302,9 @@ def net_predict(e):
         raw_y_hat        = torch.cat ((Y_hat_pitch,Y_hat_rhythm) , dim = 1)
         raw_prediction_list.append(raw_y_hat)        
         
-        #note_max , note_argmax = Y_hat_pitch.max(1)
-        prob_dist = torch.distributions.Categorical(Y_hat_pitch)
-        note_argmax = int(prob_dist.sample())
+        note_max , note_argmax = Y_hat_pitch.max(1)
+        #prob_dist = torch.distributions.Categorical(Y_hat_pitch)
+        #note_argmax = int(prob_dist.sample())
         
         rhythm_max , rhythm_argmax = Y_hat_rhythm.max(1)
         y_hat = torch.zeros(Y_hat_pre.size())
@@ -347,33 +345,32 @@ def predict_new():
 
 torch.manual_seed(12)
 
-E , S = torch.load('Dataset_windowAll_trans.pt')
+E , S = torch.load('Dataset_window8_trans.pt')
 
-
-z_size = 32       #hidden layer dimension of event LSTM
-Z_size = 48       #hidden layer dimension of signal LSTM
- 
-LR = 0.0005
-epochs = 100
-WeightDecay = 0 #1e-6
-Momentum = 0.5
-
-#loss_func = torch.nn.MSELoss()    #if used, return y_hat instead of y_hat_pre
-loss_func = torch.nn.BCEWithLogitsLoss()
-
+z_size = 16       #hidden layer dimension of event LSTM
+Z_size = 64       #hidden layer dimension of signal LSTM
 
 num_event_examples, num_events , event_emb_size, num_seq_examples, signal_emb_size = dimensions(E,S)
 durations_vector = get_durations_vector( signal_emb_size, 129, signal_emb_size-1 , 12)
+
 net_parameters = create_parameters()
 num_parameters = count_parameters(net_parameters)
 print('There are ' + str(num_parameters) + ' parameters to train.')
-optimizer = torch.optim.RMSprop(net_parameters,lr=LR, alpha=0.99, eps=1e-6, weight_decay = WeightDecay, momentum = Momentum, centered=True)
-train_parameters_stoch( loss_func, optimizer )
+
+
+LR          = 0.0005
+epochs      = 100
+WeightDecay = 0 #1e-6
+Momentum    = 0.5
+
+#loss_func = torch.nn.MSELoss()    #if used, return y_hat instead of y_hat_pre
+loss_func = torch.nn.BCEWithLogitsLoss()
+optimizer = torch.optim.RMSprop(net_parameters,lr=LR, alpha=0.99, eps=1e-8, weight_decay = WeightDecay, momentum = Momentum, centered=True)
+scheduler  = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1, last_epoch=-1)
+
+
+#train_parameters_stoch( loss_func, optimizer )
 #train_parameters_batch( loss_func, optimizer )
-
-
-#Testing the trained net:
-#solo, solo_prediction , raw_prediction = predict_new()
 
 
 #Importing parameters from file and testing:

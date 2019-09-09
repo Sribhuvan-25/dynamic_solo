@@ -177,7 +177,7 @@ def train_parameters():
     optimizer = torch.optim.RMSprop(net_parameters,lr=LR, alpha=0.99, eps=1e-6, weight_decay=1e-6, momentum=0, centered=True)
     
     J_hist=[]
-    for i in range(epochs):
+    for epoch in range(epochs):
         for j in range(num_seq_examples):
             #print('Epoch: '+str(i)+', training example: '+str(j))
             e = E[j,:,:]
@@ -189,8 +189,8 @@ def train_parameters():
             optimizer.step()    
         print(J)
         J_hist.append(J)       
-        if i%200 == 0 :
-            print(str(i)+' epochs completed')
+        if epoch%200 == 0 :
+            print(str(epoch)+' epochs completed')
     
     plt.plot(J_hist)
     plt.xlabel('iterations')
