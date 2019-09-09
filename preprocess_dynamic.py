@@ -44,7 +44,7 @@ def split_solo(midi_data , window_size):
               
     #Transposing to all keys up and down      
     transposedTrainingWindows = []
-    for intervalo in range(0,12):
+    for intervalo in range(0,1):
         if intervalo == 0:
             continue
         print('transposing all training windows '+str(intervalo)+' half steps...')
@@ -142,3 +142,7 @@ def save_data( solo , window_size , filename):
     E , S =  get_data(solo , window_size )
     Training_data = [ E , S ]
     torch.save(Training_data, filename)
+
+   
+#save_data( 'anOscarFor.mid' , 1 , 'Dataset_window1.pt')
+#save_data( 'anoscarFor.mid' , 16 , 'Dataset_window16.pt')
