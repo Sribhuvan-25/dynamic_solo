@@ -71,8 +71,8 @@ def net_predict(e):
         cell_Z_next      = torch.mul( update_Z , pre_cell_Z_step ) + torch.mul( forget_Z , cell_Z_prev )
         Z_next           = torch.mul( output_Z , torch.tanh( cell_Z_next ) )
         Y_hat_pre        = torch.mm(Z_next, W_yZ ) + b_y
-        Y_hat_pitch      = F.softmax( Y_hat_pre[:,0:129], dim = 1 )
-        Y_hat_rhythm     = F.softmax( Y_hat_pre[:,129:], dim = 1 )
+        Y_hat_pitch      = F.softmax( Y_hat_pre[:,0:rythym_idx_ini], dim = 1 )
+        Y_hat_rhythm     = F.softmax( Y_hat_pre[:,rythym_idx_ini:], dim = 1 )
         
         raw_y_hat        = torch.cat ((Y_hat_pitch,Y_hat_rhythm) , dim = 1)
         raw_prediction_list.append(raw_y_hat)        
@@ -84,7 +84,7 @@ def net_predict(e):
         rhythm_max , rhythm_argmax = Y_hat_rhythm.max(1)
         y_hat = torch.zeros(Y_hat_pre.size())
         y_hat[0, int(note_argmax)] = 1  
-        y_hat[0, int(129+int(rhythm_argmax))] = 1                    
+        y_hat[0, int(rythym_idx_ini+int(rhythm_argmax))] = 1                    
         prediction_list.append(y_hat)
     
         cell_Z_prev  = cell_Z_next
@@ -100,14 +100,16 @@ def net_predict(e):
 
 #Converts a two-hot vector into a note or rest:
 def vect2note(vector):
-    note_embedding_size = 225 
+    note_embedding_size = signal_emb_size 
     assert np.shape(vector) == (note_embedding_size,)
-    duration = int(np.argwhere(vector[129:]))/12.0
-    if vector[128] == 1:
+    duration_idx = int(np.argwhere(vector[rythym_idx_ini:]))
+    duration = durations_list[duration_idx]
+    
+    if vector[rythym_idx_ini-1] == 1:
         nota = note.Rest()
         nota.quarterLength = duration
     else:
-        height = int(np.argwhere(vector[:128]))
+        height = int(np.argwhere(vector[:rythym_idx_ini-1])) + min_pitch
         nota = note.Note()
         nota.pitch.midi = height
         nota.quarterLength = duration
@@ -149,11 +151,11 @@ def predict_new():
     return solo, solo_prediction , raw_prediction
 
 
-#--------------------------------------------------------------------------------------#
-       
-
-net_parameters, durations_vector, z_size, Z_size, event_emb_size, signal_emb_size = torch.load('model_settings.pt')    
-solo, solo_prediction , raw_prediction = predict_new()
-solo.write('xml', 'generated_solo.xml')
+#----------------------------------------------------------------------------------------------#
+    
+#rythym_idx_ini = ?         
+#net_parameters, durations_list, z_size, Z_size, event_emb_size, signal_emb_size = torch.load('model_settings.pt')    
+#solo, solo_prediction , raw_prediction = predict_new()
+#solo.write('xml', 'generated_solo.xml')
     
 

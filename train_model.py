@@ -98,17 +98,6 @@ def count_parameters(parameters):
         
     return count
 
-'''
-def get_durations_vector(signal_emb_size, idx_ini, idx_fin, subdivision):
-    
-    durations_vector = torch.zeros(signal_emb_size,1)   
-    for i in range( idx_ini, idx_fin+1 ):
-        durations_vector[i] = i - idx_ini #+ 1
-        
-    durations_vector = durations_vector/subdivision
-    
-    return durations_vector
-'''
 
 def get_durations_vector(durations_list, signal_emb_size, min_pitch, max_pitch, rest=True):
     
@@ -253,42 +242,14 @@ def train_parameters_batch( loss_func, optimizer ):
 
 torch.manual_seed(12)
 
-'''
-def train_model(dataset_path, z_size, Z_size, LR= 0.005, epochs=3, WeightDecay=1e-6, Momentum=0.5):
-    
-    E, S, durations_list, min_pitch, max_pitch = torch.load(dataset_path)
-    num_event_examples, num_events, event_emb_size, num_seq_examples, signal_emb_size = dimensions(E,S)
-    durations_vector = get_durations_vector(durations_list, signal_emb_size, min_pitch, max_pitch, rest=True)
-    net_parameters = create_parameters(z_size, Z_size)
-    num_parameters = count_parameters(net_parameters)
-    print(f'There are {num_parameters} parameters to train.')
-    
-    #loss_func = torch.nn.MSELoss()    #if used, return y_hat instead of y_hat_pre
-    loss_func = torch.nn.BCEWithLogitsLoss()
-    optimizer = torch.optim.RMSprop(net_parameters, lr=LR, alpha=0.99, eps=1e-8, \
-                                    weight_decay=WeightDecay, momentum=Momentum, centered=True)
-    scheduler  = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1, last_epoch=-1)
-    train_parameters_stoch(loss_func, optimizer)
-    #train_parameters_batch(loss_func, optimizer)
-
-    model_settings   = [net_parameters, durations_vector, z_size, Z_size, event_emb_size, signal_emb_size]
-    torch.save(model_settings, 'model_settings.pt')
-
-    
-torch.manual_seed(12)   
-#train_model('Datasets/Parker_Dataset.pt', z_size=16, Z_size=48, LR= 0.005, epochs=10, WeightDecay=1e-6, Momentum=0.5)
-
- 
-'''
-torch.manual_seed(12)
-
 E, S, durations_list, min_pitch, max_pitch = torch.load('Datasets/Parker_Dataset.pt')
 
-z_size = 8       #hidden layer dimension of event LSTM
-Z_size = 32       #hidden layer dimension of signal LSTM
+z_size = 16       #hidden layer dimension of event LSTM
+Z_size = 48       #hidden layer dimension of signal LSTM
 
 num_event_examples, num_events, event_emb_size, num_seq_examples, signal_emb_size = dimensions(E,S)
 durations_vector, rythym_idx_ini = get_durations_vector(durations_list, signal_emb_size, min_pitch, max_pitch, rest=True)
+
 
 net_parameters = create_parameters(z_size, Z_size)
 num_parameters = count_parameters(net_parameters)

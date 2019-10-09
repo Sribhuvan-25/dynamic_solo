@@ -8,7 +8,6 @@ Created on Tue Oct 23 19:19:09 2018
 
 import numpy as np
 
-
 #-------------------------- HELPER FUNCTIONS ------------------------------------# 
 
 
@@ -150,28 +149,28 @@ def user_progression():
     print('How many bars long is your progression? (enter an integer):')
     bars = int(input()) 
     total_beats = bars*4
-    chord_matrix = np.zeros([chord_embedding_size,total_beats]) 
+    chord_matrix = np.zeros([chord_embedding_size, total_beats]) 
     
     #list that will contain the chord symbols corresponting to each beat (without the symbols |'s):                                      
-    p=[] 
+    p = [] 
     #fill in with ?'s:                                                       
     for i in range(0,total_beats):                              
         p.append('?')
         
     #length of the vector containing also the |'s:  
-    m=total_beats+bars+1                                        
-    p_temp=p[:] 
+    m = total_beats + bars + 1                                        
+    p_temp = p[:] 
     
     #insert |'s every 4 symbols:
-    for i in range(0,m,5):                                      
+    for i in range(0, m, 5):                                      
         p_temp.insert(i,'|')
     
     #string that will display the progression:    
-    progression=''                                              
+    progression = ''                                              
     for i in range(len(p_temp)):
-        progression+=p_temp[i]+' '
+        progression += p_temp[i] + ' '
         
-    print('Progression: '+progression)
+    print('Progression: ' + progression)
         
     counter=0
     while True:
@@ -185,30 +184,31 @@ def user_progression():
                 print ('I don\'t know that notation')
                 break
             else:
-                chord=CHORD_VECT[symbol_input]      
+                chord = CHORD_VECT[symbol_input]      
                 print('How many beats of that chord?')
                 beats_input = int(input())
-                t=counter+beats_input
+                t = counter+beats_input
                 if t > total_beats:
-                    print('My friend, you said you wanted '+str(bars)+' bars, your progression was longer. Try again.')
+                    print('My friend, you said you wanted ' + str(bars) \
+                          + ' bars, your progression was longer. Try again.')
                     break      
                 else:
-                    for i in range(counter,t):
-                            chord_matrix[:,i]=np.transpose(chord)
-                    for i in range(counter,t):
-                        p[i]=symbol_input              
-                    p_temp=p[:]  
+                    for i in range(counter, t):
+                            chord_matrix[:,i] = np.transpose(chord)
+                    for i in range(counter, t):
+                        p[i] = symbol_input              
+                    p_temp = p[:]  
                     
                     #insert |'s every 4 symbols:
-                    for i in range(0,m,5):                                      
+                    for i in range(0, m, 5):                                      
                         p_temp.insert(i,'|')
-                    progression=''
+                    progression = ''
                     for i in range(len(p_temp)):
-                        progression+=p_temp[i]+' '
+                        progression += p_temp[i] + ' '
                         
                     print('Progression: '+progression)
-                    counter=t
-                    if counter==total_beats:
+                    counter = t
+                    if counter == total_beats:
                         break
                     else:
                         continue
