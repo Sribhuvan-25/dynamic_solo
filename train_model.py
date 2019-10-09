@@ -10,10 +10,8 @@ import numpy as np
 import torch
 from torch.autograd import Variable
 import torch.nn.functional as F
-from music21 import *
+
 import matplotlib.pyplot as plt
-from user_progression import user_progression
-from my_utils import matrix2melody
 
 
 '''
@@ -41,7 +39,7 @@ def dimensions(E,S):
     return dims
 
 
-def create_parameters():
+def create_parameters(z_size, Z_size):
     
     W_ze = Variable(torch.randn( event_emb_size , z_size ), requires_grad = True)
     W_zz = Variable(torch.randn( z_size , z_size ), requires_grad = True)
@@ -95,13 +93,13 @@ def create_parameters():
 
 def count_parameters(parameters):
     count = 0
-    for item in net_parameters:
+    for item in parameters:
         count += item.size(0)*item.size(1)
         
     return count
 
-
-def get_durations_vector( signal_emb_size, idx_ini, idx_fin, subdivision):
+'''
+def get_durations_vector(signal_emb_size, idx_ini, idx_fin, subdivision):
     
     durations_vector = torch.zeros(signal_emb_size,1)   
     for i in range( idx_ini, idx_fin+1 ):
@@ -110,9 +108,20 @@ def get_durations_vector( signal_emb_size, idx_ini, idx_fin, subdivision):
     durations_vector = durations_vector/subdivision
     
     return durations_vector
+'''
+
+def get_durations_vector(durations_list, signal_emb_size, min_pitch, max_pitch, rest=True):
+    
+    assert signal_emb_size == max_pitch - min_pitch + 1 + rest + len(durations_list)
+    idx_ini = max_pitch - min_pitch + 1 + rest
+    durations_vector = torch.zeros(signal_emb_size,1)   
+    for duration_idx, duration in enumerate(durations_list):
+        durations_vector[idx_ini + duration_idx] = float(duration)
+   
+    return durations_vector, idx_ini
 
 
-def net_train(e,s):
+def forward_pass(e,s):
     #e is one sequence of e.size(1) events
     #s is one sequence of s.size(1) signals
     
@@ -177,8 +186,8 @@ def net_train(e,s):
         signal_prev = torch.unsqueeze(s[i,:], 0)
     
     y_hat_pre     = torch.mm(Z, W_yZ ) + b_y
-    y_hat_pitch   = F.softmax( y_hat_pre[:,0:129] , dim=1 )
-    y_hat_rhythm  = F.softmax( y_hat_pre[:,129:] , dim=1 )
+    y_hat_pitch   = F.softmax( y_hat_pre[:,0:rythym_idx_ini] , dim=1 )
+    y_hat_rhythm  = F.softmax( y_hat_pre[:,rythym_idx_ini:] , dim=1 )
     y_hat         = torch.cat((y_hat_pitch , y_hat_rhythm ), dim = 1)
     
     return y_hat_pre
@@ -186,19 +195,20 @@ def net_train(e,s):
 #stochastic GD:
 def train_parameters_stoch( loss_func, optimizer ):
     
-    #stochastic:
     J_hist=[]
     for epoch in range(1,epochs+1):
         for j in range(num_seq_examples):
             optimizer.zero_grad()
             e = E[j,:,:]
             s = S[j]
-            y_hat = net_train(e,s)
+            y_hat = forward_pass(e,s)
             J = loss_func(y_hat,s)           
             J.backward()
             optimizer.step()
-            J_hist.append(J)        
-        print('Epoch ' + str(epoch) + ', Cost: ' + str(J))
+            J_hist.append(J)
+            if j%50 == 0:
+              print('Epoch: '+str(epoch)+', examples trained: ' + str(j) + ', Cost: ' + str(J))
+        #print('Epoch ' + str(epoch) + ', Cost: ' + str(J))
     
     plt.plot(J_hist[5:])
     plt.xlabel('Gradient steps')
@@ -211,7 +221,7 @@ def loss_sum():
     for j in range(num_seq_examples):
         e = E[j,:,:]
         s = S[j]
-        y_hat = net_train(e,s)
+        y_hat = forward_pass(e,s)
         J = loss_func(y_hat,s)
         SUM = SUM + J
         if j%50 == 0:
@@ -229,7 +239,7 @@ def train_parameters_batch( loss_func, optimizer ):
         J = loss_sum()
         J.backward()
         optimizer.step()
-        J_hist.append(J)        
+        J_hist.append(J.item())               
         print('Epoch ' + str(epoch) + ', Cost: ' + str(J))
     
     plt.plot(J_hist)
@@ -238,128 +248,55 @@ def train_parameters_batch( loss_func, optimizer ):
     vert_label.set_rotation(0)
 
 
-def net_predict(e):
-    
-    W_ze , W_zz , b_z ,\
-    W_update_ze , W_update_zz , b_update_z ,\
-    W_forget_ze , W_forget_zz , b_forget_z ,\
-    W_output_ze , W_output_zz , b_output_z ,\
-    W_Zz , W_ZZ , W_Zs , b_Z,\
-    W_update_ZZ , W_update_Zs , b_update_Z ,\
-    W_forget_ZZ , W_forget_Zs , b_forget_Z ,\
-    W_output_ZZ , W_output_Zs , b_output_Z ,\
-    W_yZ , b_y ,\
-    = net_parameters
-    
-    z_initial_hidden_state  = torch.zeros(1,z_size)
-    Z_initial_hidden_state  = torch.zeros(1,Z_size)
-    initial_memory_cell_z   = torch.zeros(1,z_size)
-    initial_memory_cell_Z   = torch.zeros(1,Z_size)
-
-    event_steps = e.size(0)
-    
-    z            = torch.zeros( event_steps , z_size )     
-    z_prev       = z_initial_hidden_state
-    cell_z_prev  = initial_memory_cell_z    
-    for i in reversed(range(0,event_steps)):
-        event = torch.unsqueeze(e[i,:],0)
-        
-        pre_cell_z_step  = torch.tanh( torch.mm( z_prev , W_zz ) + torch.mm( event , W_ze ) + b_z )
-        update_z         = torch.sigmoid( torch.mm( z_prev , W_update_zz ) + torch.mm( event , W_update_ze ) + b_update_z )
-        forget_z         = torch.sigmoid( torch.mm( z_prev , W_forget_zz ) + torch.mm( event , W_forget_ze ) + b_forget_z )
-        output_z         = torch.sigmoid( torch.mm( z_prev , W_output_zz ) + torch.mm( event , W_output_ze ) + b_output_z )
-        cell_z_next      = torch.mul( update_z , pre_cell_z_step ) + torch.mul( forget_z , cell_z_prev )
-        z_next           = torch.mul( output_z , torch.tanh( cell_z_next ) )
-        
-        z[i,:]       = z_next   
-        cell_z_prev  = cell_z_next
-        z_prev       = z_next
-
-    print('Predicting solo...')    
-    Z_prev               = Z_initial_hidden_state
-    cell_Z_prev          = initial_memory_cell_Z
-    signal_prev          = torch.zeros( 1 , signal_emb_size )
-    prediction_list      = []
-    raw_prediction_list  = []
-    melody_duration      = 0 
-    while melody_duration <= float(event_steps-1):
-        melody_duration += float(torch.mm( signal_prev , durations_vector ))
-        dynamic_idx      = int(melody_duration)
-        if dynamic_idx >= float(event_steps):
-            break
-        conditioning_hidden  = torch.unsqueeze(z[dynamic_idx,:], 0)
-    
-        pre_cell_Z_step  = torch.tanh( torch.mm( Z_prev , W_ZZ ) + torch.mm( signal_prev , W_Zs ) + torch.mm(conditioning_hidden , W_Zz) + b_Z )
-        update_Z         = torch.sigmoid( torch.mm( Z_prev , W_update_ZZ ) + torch.mm( signal_prev , W_update_Zs ) + b_update_Z )
-        forget_Z         = torch.sigmoid( torch.mm( Z_prev , W_forget_ZZ ) + torch.mm( signal_prev , W_forget_Zs ) + b_forget_Z )
-        output_Z         = torch.sigmoid( torch.mm( Z_prev , W_output_ZZ ) + torch.mm( signal_prev , W_output_Zs ) + b_output_Z )
-        cell_Z_next      = torch.mul( update_Z , pre_cell_Z_step ) + torch.mul( forget_Z , cell_Z_prev )
-        Z_next           = torch.mul( output_Z , torch.tanh( cell_Z_next ) )
-        Y_hat_pre        = torch.mm(Z_next, W_yZ ) + b_y
-        Y_hat_pitch      = F.softmax( Y_hat_pre[:,0:129], dim = 1 )
-        Y_hat_rhythm     = F.softmax( Y_hat_pre[:,129:], dim = 1 )
-        
-        raw_y_hat        = torch.cat ((Y_hat_pitch,Y_hat_rhythm) , dim = 1)
-        raw_prediction_list.append(raw_y_hat)        
-        
-        note_max , note_argmax = Y_hat_pitch.max(1)
-        #prob_dist = torch.distributions.Categorical(Y_hat_pitch)
-        #note_argmax = int(prob_dist.sample())
-        
-        rhythm_max , rhythm_argmax = Y_hat_rhythm.max(1)
-        y_hat = torch.zeros(Y_hat_pre.size())
-        y_hat[0, int(note_argmax)] = 1  
-        y_hat[0, int(129+int(rhythm_argmax))] = 1                    
-        prediction_list.append(y_hat)
-    
-        cell_Z_prev  = cell_Z_next
-        Z_prev       = Z_next
-        signal_prev  = y_hat
-        print( str(melody_duration) + ' beats generated')
-    
-    prediction = torch.cat(prediction_list)
-    raw_prediction = torch.cat(raw_prediction_list)
-    
-    return prediction , raw_prediction
-
-
-def predict_new():
-    print('Let\'s generate a new solo.')
-    progression , chord_matrix = user_progression()
-    chord_matrix = torch.from_numpy(chord_matrix)
-    chord_matrix = chord_matrix.transpose(0,1)
-    chord_matrix = chord_matrix.type(torch.FloatTensor)
-    solo_prediction, raw_prediction = net_predict(chord_matrix)
-    solo_prediction = solo_prediction.transpose(0,1)
-    raw_prediction = raw_prediction.transpose(0,1)
-    solo_prediction = solo_prediction.numpy()
-    raw_prediction = raw_prediction.detach().numpy()
-      
-    solo = matrix2melody(solo_prediction)    
-    solo.show('text')
-    
-    return solo, solo_prediction , raw_prediction
-
 
 #------------------------------------- UNDER CONSTRUCTION --------------------------------------------#
 
 torch.manual_seed(12)
 
-E , S = torch.load('Dataset_window8_trans.pt')
+'''
+def train_model(dataset_path, z_size, Z_size, LR= 0.005, epochs=3, WeightDecay=1e-6, Momentum=0.5):
+    
+    E, S, durations_list, min_pitch, max_pitch = torch.load(dataset_path)
+    num_event_examples, num_events, event_emb_size, num_seq_examples, signal_emb_size = dimensions(E,S)
+    durations_vector = get_durations_vector(durations_list, signal_emb_size, min_pitch, max_pitch, rest=True)
+    net_parameters = create_parameters(z_size, Z_size)
+    num_parameters = count_parameters(net_parameters)
+    print(f'There are {num_parameters} parameters to train.')
+    
+    #loss_func = torch.nn.MSELoss()    #if used, return y_hat instead of y_hat_pre
+    loss_func = torch.nn.BCEWithLogitsLoss()
+    optimizer = torch.optim.RMSprop(net_parameters, lr=LR, alpha=0.99, eps=1e-8, \
+                                    weight_decay=WeightDecay, momentum=Momentum, centered=True)
+    scheduler  = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1, last_epoch=-1)
+    train_parameters_stoch(loss_func, optimizer)
+    #train_parameters_batch(loss_func, optimizer)
 
-z_size = 16       #hidden layer dimension of event LSTM
-Z_size = 64       #hidden layer dimension of signal LSTM
+    model_settings   = [net_parameters, durations_vector, z_size, Z_size, event_emb_size, signal_emb_size]
+    torch.save(model_settings, 'model_settings.pt')
 
-num_event_examples, num_events , event_emb_size, num_seq_examples, signal_emb_size = dimensions(E,S)
-durations_vector = get_durations_vector( signal_emb_size, 129, signal_emb_size-1 , 12)
+    
+torch.manual_seed(12)   
+#train_model('Datasets/Parker_Dataset.pt', z_size=16, Z_size=48, LR= 0.005, epochs=10, WeightDecay=1e-6, Momentum=0.5)
 
-net_parameters = create_parameters()
+ 
+'''
+torch.manual_seed(12)
+
+E, S, durations_list, min_pitch, max_pitch = torch.load('Datasets/Parker_Dataset.pt')
+
+z_size = 8       #hidden layer dimension of event LSTM
+Z_size = 32       #hidden layer dimension of signal LSTM
+
+num_event_examples, num_events, event_emb_size, num_seq_examples, signal_emb_size = dimensions(E,S)
+durations_vector, rythym_idx_ini = get_durations_vector(durations_list, signal_emb_size, min_pitch, max_pitch, rest=True)
+
+net_parameters = create_parameters(z_size, Z_size)
 num_parameters = count_parameters(net_parameters)
-print('There are ' + str(num_parameters) + ' parameters to train.')
+print(f'There are {num_parameters} parameters to train.')
 
 
 LR          = 0.0005
-epochs      = 100
+epochs      = 10
 WeightDecay = 0 #1e-6
 Momentum    = 0.5
 
@@ -369,7 +306,7 @@ optimizer = torch.optim.RMSprop(net_parameters,lr=LR, alpha=0.99, eps=1e-8, weig
 scheduler  = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1, last_epoch=-1)
 
 
-#train_parameters_stoch( loss_func, optimizer )
+train_parameters_stoch( loss_func, optimizer )
 #train_parameters_batch( loss_func, optimizer )
 
 
