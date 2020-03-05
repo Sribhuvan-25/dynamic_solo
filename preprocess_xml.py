@@ -260,6 +260,7 @@ def build_dataset( directory_in_str, filename, beats_per_measure=4, transpose=Fa
     Training_data = [ E, S, durations_list, min_pitch , max_pitch]
     torch.save(Training_data, filename)
     
+#To create dataset run one of the following:    
 #build_dataset('Divided_solos', 'Parker_Dataset.pt', beats_per_measure=4)
 #build_dataset('Divided_solos', 'Parker_Dataset_allKeys.pt', beats_per_measure=4, transpose=True)
     
